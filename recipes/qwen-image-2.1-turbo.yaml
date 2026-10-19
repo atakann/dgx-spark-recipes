@@ -1,0 +1,8 @@
+# Qwen-Image 2.1 Turbo, BF16, diffusers, one DGX Spark.
+# Measured 2026-10-12 at 2048x2048: 8 steps, 6.36 s per step, 55.5 s per image,
+# load 252 s, peak 56.6 GiB (in the VAE decode, untiled).
+image: dgx-spark-recipes/diffusers:0.41.0
+build: images/diffusers
+model: Qwen/Qwen-Image-2.1-Turbo
+revision: d65dbc9a7e8f6b5479e33dee6030eaab2a906509
+script: scripts/qwen-image.py
