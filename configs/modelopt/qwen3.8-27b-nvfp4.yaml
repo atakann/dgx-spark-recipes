@@ -1,0 +1,39 @@
+# Qwen3.8-27B: MLP in NVFP4, attention (full and linear) in FP8, the rest in BF16, Local-Hessian calibration.
+# Later entries win: turn everything off, turn on what we want, then turn the sensitive parts off again.
+imports:
+  base_disable_all: configs/ptq/units/base_disable_all
+  default_disabled_quantizers: configs/ptq/units/default_disabled_quantizers
+  nvfp4: configs/numerics/nvfp4
+  nvfp4_static: configs/numerics/nvfp4_static
+  fp8: configs/numerics/fp8
+
+metadata:
+  recipe_type: ptq
+  description: >-
+    MLP weights and inputs NVFP4, full and linear attention projections FP8, Local-Hessian calibration.
+    lm_head, embedding, vision, MTP, conv1d and in_proj_a/b stay BF16. KV cache not quantized.
+quantize:
+  algorithm:
+    method: local_hessian
+    fp8_scale_sweep: true
+  quant_cfg:
+    - $import: base_disable_all
+    - quantizer_name: '*mlp*weight_quantizer'
+      cfg:
+        $import: nvfp4_static
+    - quantizer_name: '*mlp*input_quantizer'
+      cfg:
+        $import: nvfp4
+    - quantizer_name: '*self_attn*weight_quantizer'
+      cfg:
+        $import: fp8
+    - quantizer_name: '*self_attn*input_quantizer'
+      cfg:
+        $import: fp8
+    - quantizer_name: '*linear_attn*weight_quantizer'
+      cfg:
+        $import: fp8
+    - quantizer_name: '*linear_attn*input_quantizer'
+      cfg:
+        $import: fp8
+    - $import: default_disabled_quantizers

@@ -31,8 +31,15 @@ BUILD=$(get build)
 MODEL=$(get model)
 REV=$(get revision)
 SCRIPT=$(get script)
+CONFIG=$(get config)
 HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}
 OUT=${OUT:-$PWD/out}
+
+# offline by default; "online: true" lets the script download data (e.g. calibration sets)
+ENV=(-e HF_HUB_OFFLINE=1)
+[ "$(get online)" = true ] && ENV=(-e HF_HOME=/out/.hf-cache -e HF_TOKEN_PATH=/hf/token)
+MOUNTS=()
+[ -n "$CONFIG" ] && MOUNTS=(-v "$PWD/$CONFIG:/config.yaml:ro")
 
 if [ "$SETUP" = 1 ]; then
   docker build -t "$IMAGE" "$BUILD"
@@ -43,6 +50,6 @@ docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "no image $IMAGE, run wi
 mkdir -p "$OUT"
 docker run --rm --gpus all --ipc host \
   --cap-drop ALL --security-opt no-new-privileges \
-  --user "$(id -u):$(id -g)" -e HOME=/tmp -e HF_HUB_OFFLINE=1 \
+  --user "$(id -u):$(id -g)" -e HOME=/tmp "${ENV[@]}" ${MOUNTS[@]+"${MOUNTS[@]}"} \
   -v "$HF_HOME:/hf:ro" -v "$PWD/$SCRIPT:/run.py:ro" -v "$OUT:/out" \
   "$IMAGE" python /run.py --model "$MODEL" --rev "$REV" "$@"

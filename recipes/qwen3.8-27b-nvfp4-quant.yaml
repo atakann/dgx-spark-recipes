@@ -1,0 +1,11 @@
+# Qwen3.8-27B BF16 -> NVFP4 MLP + FP8 attention, Local-Hessian calibration, NVIDIA ModelOpt 0.47.0.
+# Measured 2026-10-14 on one Spark: calibration about 50 min, export 22 GiB.
+# Against BF16 (WikiText-2, 100 x 512 tokens): perplexity +2.2%, KLD 0.0295, top-1 agreement 91.1%.
+# NVIDIA's own NVFP4 on the same test: +2.9%, KLD 0.0398, top-1 88.7%.
+image: dgx-spark-recipes/modelopt:0.47.0
+build: images/modelopt
+model: Qwen/Qwen3.8-27B
+revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0
+script: scripts/modelopt-ptq.py
+config: configs/modelopt/qwen3.8-27b-nvfp4.yaml
+online: true

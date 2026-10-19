@@ -33,8 +33,27 @@ Needs Docker with the NVIDIA runtime (DGX OS has both) and the `hf` CLI for `--s
 |---|---|---|---|
 | `qwen-image-2.1-turbo` | text to image, BF16, 8 steps | diffusers 0.41.0 | 55.5 s per 2048² image |
 | `qwen-image-2.1-base` | text to image, BF16, 40 steps | diffusers 0.41.0 | 257 s per 2048² image |
+| `qwen3.8-27b-nvfp4-quant` | LLM quantization, NVFP4 | ModelOpt 0.47.0 | 50 min, KLD 0.0295 vs BF16 |
 
 ## CHANGELOG
+
+### 2026-10-20
+
+#### Qwen3.8-27B NVFP4 quantization with ModelOpt
+
+Added a recipe that makes an NVFP4 checkpoint on one Spark with NVIDIA ModelOpt 0.47.0:
+MLP in NVFP4, attention in FP8, `lm_head` and embeddings in BF16, Local-Hessian calibration.
+
+Calibration takes about 50 min; the export is 22 GiB. Against BF16 on WikiText-2 it loses
+2.2% perplexity (KLD 0.0295, top-1 agreement 91.1%). NVIDIA's own NVFP4 of the same model
+loses 2.9% (KLD 0.0398, 88.7%). The result is on Hugging Face as
+`atakans/Qwen3.8-27B-NVFP4-BF16head`.
+
+Calibration downloads two datasets, so log in with `hf auth login` first.
+
+```bash
+./run-recipe.sh qwen3.8-27b-nvfp4-quant --setup
+```
 
 ### 2026-10-19
 
