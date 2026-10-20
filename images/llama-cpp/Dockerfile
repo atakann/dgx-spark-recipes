@@ -1,5 +1,5 @@
-# llama.cpp built for the GB10 (sm_121, CUDA 13). The prebuilt server-cuda image is compiled up to sm_120
-# (CUDA 12.8); on the GB10 it decoded Ornith-1.5-122B at 1.8 tok/s with the GPU mostly idle.
+# llama.cpp built for the GB10 (sm_121, CUDA 13). The prebuilt server-cuda image (CUDA 12.8, up to sm_120)
+# decoded Ornith-1.5-122B at 1.8 tok/s on the GB10 with the GPU mostly idle; the cause was not isolated.
 FROM nvidia/cuda:13.0.3-devel-ubuntu24.04
 RUN apt-get update && apt-get install -y --no-install-recommends git cmake build-essential \
     libcurl4-openssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*

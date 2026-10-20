@@ -49,8 +49,9 @@ One user, warm: 28.2 tok/s decode, an 8k-token prompt in 8.5 s, about 80 GiB in 
 GPQA Diamond 74.2% with thinking off (simple-evals format, 198 questions, 95% CI 67.7 to 79.8).
 An independent run on the lab's API with thinking on reported 85.5.
 
-The prebuilt llama.cpp CUDA image is compiled up to sm_120 and decodes this model at
-1.8 tok/s on the GB10, so the recipe builds llama.cpp for sm_121. It also loads the weights
+The prebuilt llama.cpp CUDA image (CUDA 12.8, compiled up to sm_120) decoded this model at
+1.8 tok/s on the GB10, with the GPU mostly idle. The recipe builds llama.cpp v0.7.0 with CUDA 13
+for sm_121 instead; which of those changes matters most was not isolated. It also loads the weights
 without mmap (one copy in unified memory) and turns off auto-fit, which reads page cache
 as used memory and moves the layers to the CPU.
 
