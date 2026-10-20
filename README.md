@@ -47,7 +47,7 @@ Added a server recipe for Ornith-1.5-122B-A10B (released today, MIT) with the la
 
 One user, warm: 28.2 tok/s decode, an 8k-token prompt in 8.5 s, about 80 GiB in use.
 GPQA Diamond 74.2% with thinking off (simple-evals format, 198 questions, 95% CI 67.7 to 79.8).
-The lab's 85.5 is with thinking on.
+An independent run on the lab's API with thinking on reported 85.5.
 
 The prebuilt llama.cpp CUDA image is compiled up to sm_120 and decodes this model at
 1.8 tok/s on the GB10, so the recipe builds llama.cpp for sm_121. It also loads the weights
