@@ -34,10 +34,29 @@ Needs Docker with the NVIDIA runtime (DGX OS has both) and the `hf` CLI for `--s
 | `qwen-image-2.1-turbo` | text to image, BF16, 8 steps | diffusers 0.41.0 | 55.5 s per 2048² image |
 | `qwen-image-2.1-base` | text to image, BF16, 40 steps | diffusers 0.41.0 | 257 s per 2048² image |
 | `qwen3.8-27b-nvfp4-quant` | LLM quantization, NVFP4 | ModelOpt 0.47.0 | 50 min, KLD 0.0295 vs BF16 |
+| `ornith-1.5-122b-q4km` | LLM server, Q4_K_M GGUF | llama.cpp v0.7.0, built for sm_121 | 28.2 tok/s, one user |
 
 ## CHANGELOG
 
 ### 2026-10-20
+
+#### Ornith-1.5-122B on one Spark, llama.cpp built for GB10
+
+Added a server recipe for Ornith-1.5-122B-A10B (released today, MIT) with the lab's own Q4_K_M GGUF
+(76 GB). It serves an OpenAI-compatible API on port 8000, bound to 127.0.0.1 unless you set `HOST`.
+
+One user, warm: 28.2 tok/s decode, an 8k-token prompt in 8.5 s, about 80 GiB in use.
+GPQA Diamond 74.2% with thinking off (simple-evals format, 198 questions, 95% CI 67.7 to 79.8).
+The lab's 85.5 is with thinking on.
+
+The prebuilt llama.cpp CUDA image is compiled up to sm_120 and decodes this model at
+1.8 tok/s on the GB10, so the recipe builds llama.cpp for sm_121. It also loads the weights
+without mmap (one copy in unified memory) and turns off auto-fit, which reads page cache
+as used memory and moves the layers to the CPU.
+
+```bash
+./run-recipe.sh ornith-1.5-122b-q4km --setup
+```
 
 #### Qwen3.8-27B NVFP4 quantization with ModelOpt
 

@@ -32,8 +32,12 @@ MODEL=$(get model)
 REV=$(get revision)
 SCRIPT=$(get script)
 CONFIG=$(get config)
+TYPE=$(get type)
+FILE=$(get file)
 HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}
 OUT=${OUT:-$PWD/out}
+HOST=${HOST:-127.0.0.1}  # set HOST=0.0.0.0 to serve your LAN
+PORT=${PORT:-8000}
 
 # offline by default; "online: true" lets the script download data (e.g. calibration sets)
 ENV=(-e HF_HUB_OFFLINE=1)
@@ -43,9 +47,22 @@ MOUNTS=()
 
 if [ "$SETUP" = 1 ]; then
   docker build -t "$IMAGE" "$BUILD"
-  HF_HOME=$HF_HOME hf download "$MODEL" --revision "$REV"
+  HF_HOME=$HF_HOME hf download "$MODEL" ${FILE:+"$FILE"} --revision "$REV"
 fi
 docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "no image $IMAGE, run with --setup"; exit 1; }
+
+if [ "$TYPE" = server ]; then
+  # long-running: detached, named after the recipe, model path substituted into the engine's args
+  NAME=$(basename "$RECIPE" .yaml)
+  MODEL_PATH=/hf/hub/models--${MODEL//\//--}/snapshots/$REV${FILE:+/$FILE}
+  ARGS=$(get args)
+  # shellcheck disable=SC2086  # args are a flat flag list from the recipe
+  docker run -d --init --name "$NAME" --gpus all --memory "$(get memory)" \
+    -p "$HOST:$PORT:8000" -v "$HF_HOME:/hf:ro" \
+    "$IMAGE" ${ARGS//\{model\}/$MODEL_PATH} --host 0.0.0.0 --port 8000
+  echo "started $NAME on http://$HOST:$PORT  logs: docker logs -f $NAME  stop: docker rm -f $NAME"
+  exit 0
+fi
 
 mkdir -p "$OUT"
 docker run --rm --gpus all --ipc host \
