@@ -35,8 +35,28 @@ Needs Docker with the NVIDIA runtime (DGX OS has both) and the `hf` CLI for `--s
 | `qwen-image-2.1-base` | text to image, BF16, 40 steps | diffusers 0.41.0 | 257 s per 2048² image |
 | `qwen3.8-27b-nvfp4-quant` | LLM quantization, NVFP4 | ModelOpt 0.47.0 | 50 min, KLD 0.0295 vs BF16 |
 | `ornith-1.5-122b-q4km` | LLM server, Q4_K_M GGUF | llama.cpp v0.7.0, built for sm_121 | 28.2 tok/s, one user |
+| `ornith-1.5-122b-nvfp4` | LLM server, NVFP4 | vLLM nightly 77154ca | 26.5 tok/s, 8k prompt in 3.0 s |
 
 ## CHANGELOG
+
+### 2026-10-21
+
+#### Ornith-1.5-122B NVFP4 on vLLM
+
+Added a server recipe for the lab's own NVFP4 build (ModelOpt, 78 GB), text only, on vLLM
+nightly 77154ca. Same API as the Q4_K_M recipe: port 8000, model name `ornith`.
+
+One user, warm: 26.5 tok/s decode, an 8k-token prompt in 3.0 s (Q4_K_M on llama.cpp: 8.5 s).
+vLLM reserves about 110 GiB for weights, FP8 KV cache and graphs; the container is capped at 112g.
+Quality with thinking off, against the Q4_K_M build on the same questions: GPQA Diamond 70.2%
+(Q4_K_M 74.2%, difference within noise), IFEval prompt-strict 82.0% (Q4_K_M 76.5%, +5.5,
+95% CI +0.5 to +10.5).
+
+Server recipes now run with `--ipc host`, which vLLM needs for its shared memory.
+
+```bash
+./run-recipe.sh ornith-1.5-122b-nvfp4 --setup
+```
 
 ### 2026-10-20
 

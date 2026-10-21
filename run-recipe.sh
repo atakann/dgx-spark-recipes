@@ -57,7 +57,7 @@ if [ "$TYPE" = server ]; then
   MODEL_PATH=/hf/hub/models--${MODEL//\//--}/snapshots/$REV${FILE:+/$FILE}
   ARGS=$(get args)
   # shellcheck disable=SC2086  # args are a flat flag list from the recipe
-  docker run -d --init --name "$NAME" --gpus all --memory "$(get memory)" \
+  docker run -d --init --name "$NAME" --gpus all --ipc host --memory "$(get memory)" \
     -p "$HOST:$PORT:8000" -v "$HF_HOME:/hf:ro" \
     "$IMAGE" ${ARGS//\{model\}/$MODEL_PATH} --host 0.0.0.0 --port 8000
   echo "started $NAME on http://$HOST:$PORT  logs: docker logs -f $NAME  stop: docker rm -f $NAME"

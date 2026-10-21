@@ -1,0 +1,10 @@
+# Ornith-1.5-122B-A10B, the lab's NVFP4 (ModelOpt), on vLLM. Text only. One DGX Spark.
+# Measured 2026-10-20: decode 26.5 tok/s (one user, warm), 8k-token prompt in 3.0 s, about 110 GiB in use.
+# vLLM takes ~103 GB (weights, FP8 KV cache, graphs); the 112g cap stops a wrong estimate from freezing the box.
+type: server
+image: dgx-spark-recipes/vllm:77154ca
+build: images/vllm
+model: ornith-ai/Ornith-1.5-122B-NVFP4
+revision: dde0b1af263bd9249c71970d727d21f827272c37
+memory: 112g
+args: {model} --served-model-name ornith --language-model-only --max-model-len 65536 --max-num-seqs 8 --gpu-memory-utilization 0.85 --kv-cache-dtype fp8 --enable-prefix-caching --reasoning-parser qwen3
