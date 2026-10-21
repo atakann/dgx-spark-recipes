@@ -1,5 +1,5 @@
 # Ornith-1.5-122B-A10B, the lab's NVFP4 (ModelOpt), on vLLM. Text only. One DGX Spark.
-# Measured 2026-10-20: decode 26.5 tok/s (one user, warm), 8k-token prompt in 3.0 s, about 110 GiB in use.
+# Measured 2026-10-20: decode 26.5 tok/s (one user, warm), prefill ~2,450 tok/s (7.6k-token prompt in 3.0 s), about 110 GiB in use.
 # vLLM takes ~103 GB (weights, FP8 KV cache, graphs); the 112g cap stops a wrong estimate from freezing the box.
 type: server
 image: dgx-spark-recipes/vllm:77154ca

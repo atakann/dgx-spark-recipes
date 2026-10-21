@@ -35,7 +35,7 @@ Needs Docker with the NVIDIA runtime (DGX OS has both) and the `hf` CLI for `--s
 | `qwen-image-2.1-base` | text to image, BF16, 40 steps | diffusers 0.41.0 | 257 s per 2048² image |
 | `qwen3.8-27b-nvfp4-quant` | LLM quantization, NVFP4 | ModelOpt 0.47.0 | 50 min, KLD 0.0295 vs BF16 |
 | `ornith-1.5-122b-q4km` | LLM server, Q4_K_M GGUF | llama.cpp v0.7.0, built for sm_121 | 28.2 tok/s, one user |
-| `ornith-1.5-122b-nvfp4` | LLM server, NVFP4 | vLLM nightly 77154ca | 26.5 tok/s, 8k prompt in 3.0 s |
+| `ornith-1.5-122b-nvfp4` | LLM server, NVFP4 | vLLM nightly 77154ca | 26.5 tok/s, prefill 2,447 tok/s |
 
 ## CHANGELOG
 
@@ -46,7 +46,8 @@ Needs Docker with the NVIDIA runtime (DGX OS has both) and the `hf` CLI for `--s
 Added a server recipe for the lab's own NVFP4 build (ModelOpt, 78 GB), text only, on vLLM
 nightly 77154ca. Same API as the Q4_K_M recipe: port 8000, model name `ornith`.
 
-One user, warm: 26.5 tok/s decode, an 8k-token prompt in 3.0 s (Q4_K_M on llama.cpp: 8.5 s).
+One user, warm: 26.5 tok/s decode, prefill about 2,450 tok/s (a 7.6k-token prompt in 3.0 s;
+Q4_K_M on llama.cpp: about 790 tok/s).
 vLLM reserves about 110 GiB for weights, FP8 KV cache and graphs; the container is capped at 112g.
 Quality with thinking off, against the Q4_K_M build on the same questions: GPQA Diamond 70.2%
 (Q4_K_M 74.2%, difference within noise), IFEval prompt-strict 82.0% (Q4_K_M 76.5%, +5.5,
@@ -65,7 +66,8 @@ Server recipes now run with `--ipc host`, which vLLM needs for its shared memory
 Added a server recipe for Ornith-1.5-122B-A10B (released today, MIT) with the lab's own Q4_K_M GGUF
 (76 GB). It serves an OpenAI-compatible API on port 8000, bound to 127.0.0.1 unless you set `HOST`.
 
-One user, warm: 28.2 tok/s decode, an 8k-token prompt in 8.5 s, about 80 GiB in use.
+One user, warm: 28.2 tok/s decode, prefill about 790 tok/s (a 6.7k-token prompt in 8.5 s), about 80 GiB in use.
+(Corrected 2026-10-21: this line first said an 8k-token prompt; the benchmark had cut the prompts to ~6.7k.)
 GPQA Diamond 74.2% with thinking off (simple-evals format, 198 questions, 95% CI 67.7 to 79.8).
 An independent run on the lab's API with thinking on reported 85.5.
 

@@ -1,5 +1,5 @@
 # Ornith-1.5-122B-A10B, the lab's Q4_K_M GGUF, on llama.cpp built for the GB10 (sm_121). One DGX Spark.
-# Measured 2026-10-20: decode 28.2 tok/s (one user, warm), 8k-token prompt in 8.5 s, about 80 GiB in use.
+# Measured 2026-10-20: decode 28.2 tok/s (one user, warm), prefill ~790 tok/s (6.7k-token prompt in 8.5 s), about 80 GiB in use.
 # The prebuilt llama.cpp CUDA image (CUDA 12.8, up to sm_120) decoded this model at 1.8 tok/s on the GB10.
 type: server
 image: dgx-spark-recipes/llama-cpp:v0.7.0-sm121
