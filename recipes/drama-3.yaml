@@ -1,0 +1,15 @@
+# Fish Audio Drama 3 (35B MoE, 3B active, FP8 experts), text to speech on SGLang-Omni. One DGX Spark.
+# Measured 2026-10-14 in the playground: 1.1x real time for one request, 37.5 GiB of weights in memory.
+# Measured again 2026-10-22 with scripts/drama-tts.py: 1.07x (sentence) and 1.11x (paragraph), about 80 GiB in use.
+# The first start compiles FlashInfer's SM121 kernels into ./cache/drama-3 (once).
+type: server
+image: dgx-spark-recipes/sglang-omni:22d4ace
+build: images/sglang-omni
+model: fishaudio/drama-3
+revision: e0a9218aa48888270f06ef1ed9ea67622c0e17d2
+memory: 56g
+cache: true
+# drama-3 ships the same codec.pth as the default S2 Pro pin. SGLang's default (0.70 of the GPU memory,
+# 47 GiB of KV cache) leaves the box 1 GiB free; 0.45 keeps about 17 GiB of KV cache. The --memory cap
+# does not count GPU allocations.
+args: sgl-omni serve --model-path {model} --vocoder.factory.codec_path {model} --tts_engine.gpu_memory_fraction 0.45

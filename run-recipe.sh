@@ -46,6 +46,15 @@ ENV=(-e HF_HUB_OFFLINE=1)
 [ "$(get online)" = true ] && ENV=(-e HF_HOME=/out/.hf-cache -e HF_TOKEN_PATH=/hf/token)
 MOUNTS=()
 [ -n "$CONFIG" ] && MOUNTS=(-v "$PWD/$CONFIG:/config.yaml:ro")
+NAME=$(basename "$RECIPE" .yaml)
+# "cache: true" keeps FlashInfer's SM121 kernels in ./cache/<recipe>: they compile once,
+# and MAX_JOBS=4 keeps the compile from running the box out of memory
+CACHE=()
+if [ "$(get cache)" = true ]; then
+  mkdir -p "cache/$NAME"
+  CACHE=(-v "$PWD/cache/$NAME:/cache" -e FLASHINFER_WORKSPACE_BASE=/cache -e MAX_JOBS=4)
+fi
+MEMORY=$(get memory)
 
 if [ "$SETUP" = 1 ]; then
   docker build -t "$IMAGE" "$BUILD"
@@ -58,7 +67,6 @@ docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "no image $IMAGE, run wi
 
 if [ "$TYPE" = server ]; then
   # long-running: detached, named after the recipe, model path substituted into the engine's args
-  NAME=$(basename "$RECIPE" .yaml)
   snap() { echo "/hf/hub/models--${1//\//--}/snapshots/$2"; }
   ARGS=$(get args)
   ARGS=${ARGS//\{model\}/$(snap "$MODEL" "$REV")${FILE:+/$FILE}}
@@ -66,16 +74,17 @@ if [ "$TYPE" = server ]; then
   # vLLM and llama.cpp take --host/--port; ComfyUI sets its own in "serve"
   SERVE=$(get serve)
   # shellcheck disable=SC2086  # args are a flat flag list from the recipe
-  docker run -d --init --name "$NAME" --gpus all --ipc host --memory "$(get memory)" \
+  docker run -d --init --name "$NAME" --gpus all --ipc host --memory "$MEMORY" \
     -p "$HOST:$PORT:8000" -v "$HF_HOME:/hf:ro" ${MOUNTS[@]+"${MOUNTS[@]}"} \
+    ${CACHE[@]+"${CACHE[@]}"} \
     "$IMAGE" $ARGS ${SERVE:---host 0.0.0.0 --port 8000}
   echo "started $NAME on http://$HOST:$PORT  logs: docker logs -f $NAME  stop: docker rm -f $NAME"
   exit 0
 fi
 
 mkdir -p "$OUT"
-docker run --rm --gpus all --ipc host \
-  --cap-drop ALL --security-opt no-new-privileges \
+docker run --rm --gpus all --ipc host ${MEMORY:+--memory "$MEMORY"} \
+  ${CACHE[@]+"${CACHE[@]}"} --cap-drop ALL --security-opt no-new-privileges \
   --user "$(id -u):$(id -g)" -e HOME=/tmp "${ENV[@]}" ${MOUNTS[@]+"${MOUNTS[@]}"} \
   -v "$HF_HOME:/hf:ro" -v "$PWD/$SCRIPT:/run.py:ro" -v "$OUT:/out" \
   "$IMAGE" python /run.py --model "$MODEL" --rev "$REV" "$@"

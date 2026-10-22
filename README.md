@@ -54,9 +54,58 @@ Server recipes start in the background and serve on port 8000 (`HOST`, `PORT` to
 | `qwen-image-2.1-base` | Qwen-Image 2.1, BF16, 40 steps | diffusers 0.41.0 | 257 s per 2048² image |
 | `flux-3-klein` | FLUX 3 Klein, BF16 and NVFP4 | ComfyUI v0.41.0 | 7.2 s per 1 MP image (NVFP4) |
 
+### Video
+
+| recipe | model | engine | one Spark |
+|---|---|---|---|
+| `fasth3-qad` | FastH3-QAD-v2, NVFP4, video with sound | FastVideo d4f1445 | 8.1 min for 10 s of 1344×768 |
+
+### Speech
+
+| recipe | model | engine | one Spark |
+|---|---|---|---|
+| `drama-3` | Fish Audio Drama 3, text to speech | SGLang-Omni 22d4ace | 1.1× real time, one request |
+
 ## CHANGELOG
 
 ### 2026-10-22
+
+#### FastH3-QAD-v2 on FastVideo: 10 s of video with sound
+
+Added a recipe for `FastVideo/FastH3-QAD-v2` (an NVFP4 DiT trained with QAD, with its NVFP4 text
+encoder, light video VAE and audio VAE) on FastVideo d4f1445, with FastVideo's own DGX Spark config
+and the environment variables its header lists. It runs in the foreground and writes the MP4 and
+FastVideo's stage log to `./out`.
+
+By default it makes 10 s of 1344×768 video (243 frames) from a two-shot prompt with speech, rain and
+music, seed 0: 489 s (8.1 min) with the kernels cached, of which 392 s of denoising (8 DiT
+steps) and 96 s of video decoding. Peak memory 46.6 GiB allocated. The first run also compiles FlashInfer's FP4 kernels (about 3.5 min) into
+`./cache/fasth3-qad`; later runs reuse them. `-- --ref` runs FastVideo's own request (832×480,
+124 frames); `-- --prompt-file out/<file>` takes your prompt from `./out`.
+
+```bash
+./run-recipe.sh fasth3-qad --setup
+```
+
+#### Drama 3 on SGLang-Omni: text to speech
+
+Added a server recipe for `fishaudio/drama-3` (35B MoE, 3B active) on SGLang-Omni 22d4ace, built for
+the GB10: upstream's Dockerfile without its amd64-only kernel cache, with OpenFst built from source
+for arm64. The first start compiles FlashInfer's SM121 kernels into `./cache/drama-3`.
+
+`scripts/drama-tts.py` sends a sentence and a paragraph to `/v1/audio/speech`, one at a time:
+5.2 s of speech in 4.8 s (1.07× real time) and 30.4 s in 27.3 s (1.11×). The wav files go to `./out`.
+
+SGLang's default memory share (0.70) gave the KV cache 47 GiB and left 1 GiB free; the recipe sets
+`--tts_engine.gpu_memory_fraction 0.45`, and about 42 GiB stays available.
+
+```bash
+./run-recipe.sh drama-3 --setup
+python3 scripts/drama-tts.py
+```
+
+`run-recipe.sh` now keeps FlashInfer's JIT kernels per recipe in `./cache/<recipe>` (`cache: true`)
+and applies `memory` to script recipes too.
 
 #### Nemotron 3.5 Bolt on vLLM, with and without NVIDIA's draft
 

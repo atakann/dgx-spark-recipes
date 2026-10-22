@@ -1,0 +1,10 @@
+# FastH3-QAD-v2 (NVFP4 DiT trained with QAD) on FastVideo: video with sound from text. One DGX Spark.
+# Measured 2026-10-22: 10 s of 1344x768 video (243 frames) in 489 s (8.1 min), peak 46.6 GiB allocated.
+# The first run compiles FlashInfer's FP4 kernels into ./cache/fasth3-qad (once, about 3 min).
+image: dgx-spark-recipes/fastvideo:d4f1445
+build: images/fastvideo
+model: FastVideo/FastH3-QAD-v2
+revision: a0dc05a76acdba7733c196b67b424889b6a2272b
+script: scripts/fasth3.py
+memory: 100g
+cache: true
