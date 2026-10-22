@@ -1,0 +1,11 @@
+# FLUX 3 Klein (6B), BFL's ComfyUI files, BF16 and NVFP4 in one ComfyUI server. One DGX Spark.
+# Measured 2026-10-22 (scripts/klein-bench.py), 16 steps, median: 1 MP BF16 10.6 s, NVFP4 7.2 s; 4 MP BF16 55.9 s, NVFP4 44.1 s.
+type: server
+image: dgx-spark-recipes/comfyui:0.41.0
+build: images/comfyui
+model: black-forest-labs/flux-3-image-klein-comfy
+revision: feef60b0aaf63a4773ace96636ebbcf43b881312
+memory: 48g
+config: configs/comfyui/flux-3-klein.yaml
+args: --extra-model-paths-config /config.yaml
+serve: --listen 0.0.0.0 --port 8000

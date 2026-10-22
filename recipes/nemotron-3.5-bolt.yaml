@@ -1,0 +1,9 @@
+# Nemotron 3.5 Bolt 74B-A9B 24GB (native 2-bit QAD), NVIDIA's flags, text only. One DGX Spark.
+# Measured 2026-10-22: 29 tok/s decode (one user, warm), 23 GiB of weights.
+type: server
+image: dgx-spark-recipes/vllm-bolt:77154ca
+build: images/vllm-bolt
+model: nvidia/NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB
+revision: c6cc2e8ffa353403213d6b9b18aaf8eb684d705a
+memory: 80g
+args: {model} --served-model-name bolt --trust-remote-code --max-model-len 131072 --max-num-seqs 8 --gpu-memory-utilization 0.6 --kv-cache-dtype fp8 --linear-backend b12x --moe-backend b12x --attention-backend FLASHINFER --mamba-backend flashinfer --mamba-ssm-cache-dtype bfloat16 --mamba-cache-dtype bfloat16 --mamba-cache-mode align --reasoning-parser-plugin {model}/ultra_v3_reasoning_parser.py --reasoning-parser ultra_v3

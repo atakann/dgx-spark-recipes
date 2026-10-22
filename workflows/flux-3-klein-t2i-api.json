@@ -1,0 +1,453 @@
+{
+ "9": {
+  "inputs": {
+   "filename_prefix": "flux3_klein_bf16_t2i",
+   "images": [
+    "128:108",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "19": {
+  "inputs": {
+   "aspect_ratio": "1:1 (Square)",
+   "megapixels": 1.0,
+   "multiple": 16
+  },
+  "class_type": "ResolutionSelector",
+  "_meta": {
+   "title": "Resolution Selector"
+  }
+ },
+ "25": {
+  "inputs": {
+   "width": [
+    "19",
+    0
+   ],
+   "height": [
+    "19",
+    1
+   ],
+   "editor_state": {
+    "__value__": []
+   },
+   "last_incoming": {
+    "__value__": []
+   }
+  },
+  "class_type": "CreateBoundingBoxes",
+  "_meta": {
+   "title": "Bounding boxes (optional)"
+  }
+ },
+ "28": {
+  "inputs": {
+   "value": "Close-up outdoor portrait photograph at dawn, shot with an 85mm lens at f/1.8 and a shallow depth of field. An elderly white fisherman fills the center of the frame from the chest upward, standing on the weathered planks of a wooden fishing boat. He faces the camera directly, his light grey eyes fixed on the lens beneath heavy brows. Deep wrinkles cross his forehead and gather around his nose and mouth; his fair, weathered skin is roughened by sun exposure, with redness across the cheeks and small salt droplets clinging to his face. A thick salt-and-pepper beard covers his jaw and chin, its coarse strands wet with water droplets. He wears a worn yellow raincoat with the hood down, folded behind his neck; faded seams, dark damp patches, and frayed cuffs mark the fabric. In front of his chest, both rough hands hold a thick tan rope wound into a compact coil, with cracked knuckles, calluses, and beads of moisture catching the light. Cold blue-grey morning light enters from frame-left, illuminating one side of his face while the opposite cheek falls into muted shadow. The boat\u2019s damp gunwale crosses the lower background. Behind him, the calm sea dissolves into thin pale fog, rendered as soft blue-grey bands, with three distant seagulls reduced to blurred silhouettes near the upper right. Natural colors remain subdued in the misty dawn light."
+  },
+  "class_type": "PrimitiveStringMultiline",
+  "_meta": {
+   "title": "Prompt"
+  }
+ },
+ "113": {
+  "inputs": {
+   "source": [
+    "127:116",
+    0
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Upsampled prompt"
+  }
+ },
+ "127:112": {
+  "inputs": {
+   "clip_name": "qwen3.5_9b_flux3_prompt_upsampler_bf16.safetensors",
+   "type": "flux3",
+   "device": "default"
+  },
+  "class_type": "CLIPLoader",
+  "_meta": {
+   "title": "Upsampler model"
+  }
+ },
+ "127:116": {
+  "inputs": {
+   "switch": false,
+   "on_false": [
+    "127:27",
+    0
+   ],
+   "on_true": [
+    "127:111",
+    0
+   ]
+  },
+  "class_type": "ComfySwitchNode",
+  "_meta": {
+   "title": "Upsampler on/off"
+  }
+ },
+ "127:27": {
+  "inputs": {
+   "prompt": [
+    "28",
+    0
+   ],
+   "element": [
+    "25",
+    2
+   ]
+  },
+  "class_type": "Flux3LayoutPrompt",
+  "_meta": {
+   "title": "Prompt + boxes"
+  }
+ },
+ "127:118": {
+  "inputs": {
+   "prompt": "",
+   "element": [
+    "25",
+    2
+   ]
+  },
+  "class_type": "Flux3LayoutPrompt",
+  "_meta": {
+   "title": "Box rows only"
+  }
+ },
+ "127:119": {
+  "inputs": {
+   "string": [
+    "127:118",
+    0
+   ],
+   "mode": "Both"
+  },
+  "class_type": "StringTrim",
+  "_meta": {
+   "title": "Trim box rows"
+  }
+ },
+ "127:120": {
+  "inputs": {
+   "string": [
+    "127:119",
+    0
+   ],
+   "substring": "\"bbox\"",
+   "case_sensitive": true
+  },
+  "class_type": "StringContains",
+  "_meta": {
+   "title": "Has boxes?"
+  }
+ },
+ "127:126": {
+  "inputs": {
+   "string": [
+    "28",
+    0
+   ],
+   "mode": "Both"
+  },
+  "class_type": "StringTrim",
+  "_meta": {
+   "title": "Trim prompt"
+  }
+ },
+ "127:121": {
+  "inputs": {
+   "string_a": "ORIGINAL PROMPT:\n",
+   "string_b": [
+    "127:126",
+    0
+   ],
+   "delimiter": ""
+  },
+  "class_type": "StringConcatenate",
+  "_meta": {
+   "title": "Locked-box input (1/2)"
+  }
+ },
+ "127:122": {
+  "inputs": {
+   "string_a": [
+    "127:121",
+    0
+   ],
+   "string_b": [
+    "127:119",
+    0
+   ],
+   "delimiter": "\n\nLOCKED BOUNDING-BOX ANNOTATIONS ([y_min, x_min, y_max, x_max] on a 0-1000 canvas, with (0, 0) at the top-left). This is an authoritative JSON list of dictionaries; preserve every supplied identity, provenance value, null, and coordinate exactly:\n"
+  },
+  "class_type": "StringConcatenate",
+  "_meta": {
+   "title": "Locked-box input (2/2)"
+  }
+ },
+ "127:123": {
+  "inputs": {
+   "switch": [
+    "127:120",
+    0
+   ],
+   "on_false": [
+    "28",
+    0
+   ],
+   "on_true": [
+    "127:122",
+    0
+   ]
+  },
+  "class_type": "ComfySwitchNode",
+  "_meta": {
+   "title": "Upsampler input: plain or locked-box"
+  }
+ },
+ "127:114": {
+  "inputs": {
+   "value": "You are the prompt upsampler of a text-to-image model. Expand the user's short request into ONE detailed, self-contained caption: the exact text the image model receives. Output only the caption, with no greetings, explanations, refusals, questions, Markdown, headings, JSON, coordinates, ids or angle-bracket tokens, and no quotes around it. If the input is not clearly an image request, caption a visualization of its concept. The request may begin with a \"TARGET CANVAS: W:H\" line: compose for that canvas (wide spreads content sideways, tall stacks it) and never mention the ratio or the canvas.\n\nFidelity and planning: keep every explicit subject, attribute, count, spatial constraint, style cue and piece of wording; never contradict, substitute, drop or narrow the request, and keep an abstract concept abstract. Decide everything left open as ONE concrete, consistent plan; never offer alternatives or hedge. Never re-express a stated constraint through another mechanism; add camera optics (depth of field, bokeh, blur) only when asked for or implied. Without a stated style, plan an actual photograph and open with the medium convention (\"Full-color outdoor photograph, ...\", \"Full-color indoor photograph, ...\", \"Studio photograph, ...\", \"Close-up photograph, ...\"); keep \"Photorealistic\" for renders, and turn \"photorealistic\" or \"realistic\" requests for photos into the photograph convention. Give a photograph a few ordinary, non-ideal specifics drawn from the scene's own objects instead of the stock-photo ideal. Do not invent names, brands, logos or celebrities; keep user-named ones. A long request keeps its content but not its wording: drop appraisal and sales vocabulary, turn moods into observable physical facts, and add only new concrete content with positions. Time of day is lighting, not rendered text.\n\nCaption format: one continuous prose block in the generative voice, never \"this image shows\", \"we can see\" or \"is visible\". Lead with medium and style, then scene, lighting and camera, then the subjects with concrete colors, materials and state. Every person in focus gets an observable profile: ethnicity, gender, age range, skin tone (\"fair skin\", \"brown skin\"), hair and clothing. Make the layout reconstructable from words: frame-relative positions (frame-left, frame-right, upper, lower, foreground, midground, background), sentence-initial anchors (\"On the left, ...\", \"In the background, ...\"), relations (holds, faces, behind) and a consistent order; describe up to about ten instances one by one, beyond that give the exact count and arrangement. Out-of-focus or distant planes are shapes, colors and silhouettes, never identities or readable text, and the background takes about a sixth of the caption. Be definite: no hedging adverbs, no quality or emotion judgments, no closing sentence about mood; state negations as what is present. Rendered text: transcribe every wording verbatim inside double quotes in its original language and script, keep the line breaks of multi-line text, and give its typography, color and placement; author concrete, domain-correct wording when the request needs text it does not supply, and name canonical structures (calendar, keyboard, periodic table) exactly with their full layout. All prose is English; only quoted text keeps its language. Typical length is 100 to 350 words, more for complex scenes.\n\nOutput only the caption."
+  },
+  "class_type": "PrimitiveStringMultiline",
+  "_meta": {
+   "title": "System prompt: plain (t2i)"
+  }
+ },
+ "127:124": {
+  "inputs": {
+   "value": "You are the prompt upsampler of a text-to-image model. Plan the full image the user's short request implies and output ONE structured caption on a single line: the global caption paragraph, one space, then ONE JSON array, the element table that places every cited element with a bounding box in the image to be generated. Output nothing else (no Markdown fences, commentary or refusals); visualize the concept of a non-image input. The request may begin with a \"TARGET CANVAS: W:H\" line: compose for that canvas and never mention it. Boxes live on a 0-1000 grid stretched onto the canvas: an element of physical width-to-height ratio a gets an x-span of about y-span x a x H/W.\n\nPlanning: keep every explicit subject, attribute, count, spatial constraint, style cue and piece of wording, and decide everything left open as ONE concrete composition that the caption and the table both describe. Without a stated style plan an actual photograph and open with the medium convention (\"Full-color outdoor photograph, ...\", \"Studio photograph, ...\"); add camera optics only when asked for; do not invent names, brands, logos or celebrities; drop appraisal and sales vocabulary.\n\nThe table: one row per distinct object, person, animal, building or salient region the caption mentions and one per coherent text block; no rows for style, lighting or atmosphere. Structured layouts (tables, grids, calendars, keyboards, charts, maps, posters, pages) decompose into their regions, each row carrying that region's complete verbatim content; more than about ten interchangeable items become one collection row giving the exact count and arrangement, while items whose positions matter keep a row each. Row keys, in order: \"id\", \"bbox\", \"desc\". id: the bare class noun plus an index numbered left to right, then top to bottom, from 1 (person_1, dog_2); a text block is its two-letter language code plus _Text_ plus an index (En_Text_1); one entity is one row and ids are unique. bbox: [y_min, x_min, y_max, x_max] as integers from 0 to 1000, top-left origin, clamped at the borders, with plausible relative sizes and a small margin around text. desc: one self-contained paragraph in the generative voice that opens with the element's identity (never \"the X\"): shape, material, colors, state and markings, but no position. People in focus get the richest desc: ethnicity, gender, age range, skin tone, build, hair, face, each garment, accessories, pose and expression. A text row carries its complete wording verbatim in double quotes, with line breaks as \\n, plus its typography.\n\nThe global caption: one flowing paragraph in the generative voice (medium first, then scene, lighting, camera and frame-relative layout; no quality judgments) that names each table element at identity level at its first mention and cites it with its id in its own angle brackets: \"a wicker table <table_1> holding a tiered stand <stand_1>\". Cite every table id and no other; appearance detail and text content live in the descs; no coordinates. Text-dense documents are laid out region by region with every visible text transcribed verbatim at a readable size (cut content rather than shrink type), and a grid quotes every visible cell. All prose is English; only quoted text keeps its language.\n\nOutput only the caption and the table."
+  },
+  "class_type": "PrimitiveStringMultiline",
+  "_meta": {
+   "title": "System prompt: bounding boxes (t2i_bbox)"
+  }
+ },
+ "127:125": {
+  "inputs": {
+   "switch": [
+    "127:120",
+    0
+   ],
+   "on_false": [
+    "127:114",
+    0
+   ],
+   "on_true": [
+    "127:124",
+    0
+   ]
+  },
+  "class_type": "ComfySwitchNode",
+  "_meta": {
+   "title": "System prompt: t2i or t2i_bbox"
+  }
+ },
+ "127:111": {
+  "inputs": {
+   "prompt": [
+    "127:123",
+    0
+   ],
+   "max_length": 3584,
+   "sampling_mode": "on",
+   "sampling_mode.temperature": 1.0,
+   "sampling_mode.top_k": 1,
+   "sampling_mode.top_p": 0.95,
+   "sampling_mode.min_p": 0.0,
+   "sampling_mode.repetition_penalty": 1.0,
+   "sampling_mode.seed": 758781618552631,
+   "sampling_mode.presence_penalty": 1.5,
+   "thinking": false,
+   "use_default_template": true,
+   "mtp": "off",
+   "clip": [
+    "127:112",
+    0
+   ],
+   "system_prompt": [
+    "127:125",
+    0
+   ]
+  },
+  "class_type": "TextGenerate",
+  "_meta": {
+   "title": "Prompt upsampler"
+  }
+ },
+ "128:101": {
+  "inputs": {
+   "unet_name": "flux3-image-klein-nvfp4.safetensors",
+   "weight_dtype": "default"
+  },
+  "class_type": "UNETLoader",
+  "_meta": {
+   "title": "Load Diffusion Model"
+  }
+ },
+ "128:102": {
+  "inputs": {
+   "clip_name": "qwen3vl_4b_bf16.safetensors",
+   "type": "flux3",
+   "device": "default"
+  },
+  "class_type": "CLIPLoader",
+  "_meta": {
+   "title": "Text encoder"
+  }
+ },
+ "128:103": {
+  "inputs": {
+   "vae_name": "flux2-vae.safetensors"
+  },
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "Load VAE"
+  }
+ },
+ "128:104": {
+  "inputs": {
+   "text": [
+    "113",
+    0
+   ],
+   "clip": [
+    "128:102",
+    0
+   ]
+  },
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "Positive Prompt"
+  }
+ },
+ "128:105": {
+  "inputs": {
+   "text": "",
+   "clip": [
+    "128:102",
+    0
+   ]
+  },
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "Negative Prompt (unused at cfg 1)"
+  }
+ },
+ "128:106": {
+  "inputs": {
+   "width": [
+    "19",
+    0
+   ],
+   "height": [
+    "19",
+    1
+   ],
+   "batch_size": 1
+  },
+  "class_type": "EmptyFlux2LatentImage",
+  "_meta": {
+   "title": "Empty Flux 2 Latent"
+  }
+ },
+ "128:107": {
+  "inputs": {
+   "seed": 829737105726478,
+   "steps": 16,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "denoise": 1.0,
+   "model": [
+    "128:132",
+    0
+   ],
+   "positive": [
+    "128:104",
+    0
+   ],
+   "negative": [
+    "128:105",
+    0
+   ],
+   "latent_image": [
+    "128:106",
+    0
+   ]
+  },
+  "class_type": "KSampler",
+  "_meta": {
+   "title": "KSampler (16 steps, cfg 1)"
+  }
+ },
+ "128:108": {
+  "inputs": {
+   "samples": [
+    "128:107",
+    0
+   ],
+   "vae": [
+    "128:103",
+    0
+   ]
+  },
+  "class_type": "VAEDecode",
+  "_meta": {
+   "title": "VAE Decode"
+  }
+ },
+ "128:130": {
+  "inputs": {
+   "value": 6.93
+  },
+  "class_type": "PrimitiveFloat",
+  "_meta": {
+   "title": "alpha"
+  }
+ },
+ "128:131": {
+  "inputs": {
+   "expression": "log(a)",
+   "values.a": [
+    "128:130",
+    0
+   ]
+  },
+  "class_type": "ComfyMathExpression",
+  "_meta": {
+   "title": "mu = ln(alpha)"
+  }
+ },
+ "128:132": {
+  "inputs": {
+   "max_shift": [
+    "128:131",
+    0
+   ],
+   "base_shift": [
+    "128:131",
+    0
+   ],
+   "width": 1024,
+   "height": 1024,
+   "model": [
+    "128:101",
+    0
+   ]
+  },
+  "class_type": "ModelSamplingFlux",
+  "_meta": {
+   "title": "Timestep shift (from alpha)"
+  }
+ }
+}

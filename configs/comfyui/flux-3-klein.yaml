@@ -1,0 +1,6 @@
+klein:
+  # yamllint disable-line rule:line-length
+  base_path: /hf/hub/models--black-forest-labs--flux-3-image-klein-comfy/snapshots/feef60b0aaf63a4773ace96636ebbcf43b881312
+  diffusion_models: diffusion_models
+  text_encoders: text_encoders
+  vae: vae

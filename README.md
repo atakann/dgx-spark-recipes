@@ -29,15 +29,72 @@ Needs Docker with the NVIDIA runtime (DGX OS has both) and the `hf` CLI for `--s
 
 ## Recipes
 
+Server recipes start in the background and serve on port 8000 (`HOST`, `PORT` to change).
+
+### LLM servers
+
+| recipe | model | engine | one Spark, one user |
+|---|---|---|---|
+| `ornith-1.5-122b-q4km` | Ornith-1.5-122B, Q4_K_M GGUF | llama.cpp v0.7.0, built for sm_121 | 28.2 tok/s |
+| `ornith-1.5-122b-nvfp4` | Ornith-1.5-122B, NVFP4 | vLLM nightly 77154ca | 26.5 tok/s, prefill 2,447 tok/s |
+| `nemotron-3.5-bolt` | Nemotron 3.5 Bolt 74B, 2-bit QAD | vLLM nightly 77154ca + b12x | 29 tok/s |
+| `nemotron-3.5-bolt-lilicorr` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 93-104 tok/s on code, JSON, rewrites |
+
+### LLM quantization
+
 | recipe | task | engine | one Spark |
 |---|---|---|---|
-| `qwen-image-2.1-turbo` | text to image, BF16, 8 steps | diffusers 0.41.0 | 55.5 s per 2048² image |
-| `qwen-image-2.1-base` | text to image, BF16, 40 steps | diffusers 0.41.0 | 257 s per 2048² image |
-| `qwen3.8-27b-nvfp4-quant` | LLM quantization, NVFP4 | ModelOpt 0.47.0 | 50 min, KLD 0.0295 vs BF16 |
-| `ornith-1.5-122b-q4km` | LLM server, Q4_K_M GGUF | llama.cpp v0.7.0, built for sm_121 | 28.2 tok/s, one user |
-| `ornith-1.5-122b-nvfp4` | LLM server, NVFP4 | vLLM nightly 77154ca | 26.5 tok/s, prefill 2,447 tok/s |
+| `qwen3.8-27b-nvfp4-quant` | Qwen3.8-27B to NVFP4 | ModelOpt 0.47.0 | 50 min, KLD 0.0295 vs BF16 |
+
+### Image
+
+| recipe | model | engine | one Spark |
+|---|---|---|---|
+| `qwen-image-2.1-turbo` | Qwen-Image 2.1 Turbo, BF16, 8 steps | diffusers 0.41.0 | 55.5 s per 2048² image |
+| `qwen-image-2.1-base` | Qwen-Image 2.1, BF16, 40 steps | diffusers 0.41.0 | 257 s per 2048² image |
+| `flux-3-klein` | FLUX 3 Klein, BF16 and NVFP4 | ComfyUI v0.41.0 | 7.2 s per 1 MP image (NVFP4) |
 
 ## CHANGELOG
+
+### 2026-10-22
+
+#### Nemotron 3.5 Bolt on vLLM, with and without NVIDIA's draft
+
+Added two server recipes for `nvidia/NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB` (74B MoE, 9B active,
+native 2-bit QAD, 23 GiB) with NVIDIA's flags, text only. Port 8000, model name `bolt`.
+
+Without the draft: 29 tok/s decode, one user. With the LiLiCorr draft (DFlash, 7 tokens),
+temperature 0, 300 tokens: code 94 tok/s, JSON 93, rewrite 104, story 48. Translation to Turkish
+is slower with the draft (26 tok/s), because the draft is accepted less often.
+
+```bash
+./run-recipe.sh nemotron-3.5-bolt --setup
+./run-recipe.sh nemotron-3.5-bolt-lilicorr --setup
+```
+
+#### FLUX 3 Klein on ComfyUI, BF16 and NVFP4
+
+Added a ComfyUI server recipe with BFL's own files (`flux-3-image-klein-comfy`): BF16 and NVFP4
+in one server, on NVIDIA's PyTorch for the GB10. Open `http://127.0.0.1:8000` for the UI.
+
+`scripts/klein-bench.py` makes 24 images (2 formats, 1 and 4 MP, 3 prompts, 2 seeds, 16 steps)
+through the API with BFL's text-to-image graph. Median time per image:
+
+| | 1 MP | 4 MP |
+|---|---|---|
+| BF16 | 10.6 s | 55.9 s |
+| NVFP4 | 7.2 s | 44.1 s |
+
+Only the linear layers are 4-bit in NVFP4; attention stays BF16, so the gain is smaller at 4 MP.
+NVFP4 keeps the scene but not every detail of the BF16 image.
+
+```bash
+./run-recipe.sh flux-3-klein --setup
+python3 scripts/klein-bench.py
+```
+
+`run-recipe.sh` now takes a draft model (`draft`, `draft_revision`) and the engine's own
+listen flags (`serve`) in a recipe.
 
 ### 2026-10-21
 
