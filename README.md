@@ -39,6 +39,7 @@ Server recipes start in the background and serve on port 8000 (`HOST`, `PORT` to
 | `ornith-1.5-122b-nvfp4` | Ornith-1.5-122B, NVFP4 | vLLM nightly 77154ca | 26.5 tok/s, prefill 2,447 tok/s |
 | `nemotron-3.5-bolt` | Nemotron 3.5 Bolt 74B, 2-bit QAD | vLLM nightly 77154ca + b12x | 29 tok/s |
 | `nemotron-3.5-bolt-lilicorr` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 93-104 tok/s on code, JSON, rewrites |
+| `qwen3.8-flash-next-fp4` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 44-62 tok/s on JSON, code, rewrites |
 
 ### LLM quantization
 
@@ -67,6 +68,29 @@ Server recipes start in the background and serve on port 8000 (`HOST`, `PORT` to
 | `drama-3` | Fish Audio Drama 3, text to speech | SGLang-Omni 22d4ace | 1.1× real time, one request |
 
 ## CHANGELOG
+
+### 2026-10-23
+
+#### Qwen3.8-Flash-Next FP4-Local on vLLM, NVIDIA's DGX Spark command
+
+Added a server recipe for `nvidia/Qwen3.8-Flash-Next-FP4-Local` (NVIDIA's QAD build: routed experts
+NVFP4, attention MXFP8, 96 GiB) with the command from NVIDIA's model card: the community image the card
+names (`eugr/spark-vllm-b12x`, pinned by digest to nightly-20261015, vLLM 8244d1c), the card's
+environment and flags, MTP 4. Port 8000, model name `qwen3.8-flash-next`.
+
+One user, thinking off, temperature 0.7, 300 tokens, median of 5 (`spec.py`): JSON 62.4 tok/s,
+code 58.0, explain 46.5, rewrite 44.2, story 33.6. On random text, where the MTP draft rarely
+matches, decode is 21.3 tok/s.
+
+The first start compiles vLLM's, Triton's and b12x's kernels into `./cache/qwen3.8-flash-next-fp4`
+and takes 17 min; later starts take about 5 min.
+
+```bash
+./run-recipe.sh qwen3.8-flash-next-fp4 --setup
+```
+
+`run-recipe.sh` takes a new key, `io_uring: true`: b12x reads the weights and the PLE table through
+io_uring with locked buffers, which Docker's default seccomp profile blocks.
 
 ### 2026-10-22
 

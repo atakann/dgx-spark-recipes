@@ -55,6 +55,10 @@ if [ "$(get cache)" = true ]; then
   CACHE=(-v "$PWD/cache/$NAME:/cache" -e FLASHINFER_WORKSPACE_BASE=/cache -e MAX_JOBS=4)
 fi
 MEMORY=$(get memory)
+# "io_uring: true": b12x reads the weights and the PLE table through io_uring with locked
+# buffers, which Docker's default seccomp profile blocks
+URING=()
+[ "$(get io_uring)" = true ] && URING=(--security-opt seccomp=unconfined --ulimit memlock=-1:-1)
 
 if [ "$SETUP" = 1 ]; then
   docker build -t "$IMAGE" "$BUILD"
@@ -76,7 +80,7 @@ if [ "$TYPE" = server ]; then
   # shellcheck disable=SC2086  # args are a flat flag list from the recipe
   docker run -d --init --name "$NAME" --gpus all --ipc host --memory "$MEMORY" \
     -p "$HOST:$PORT:8000" -v "$HF_HOME:/hf:ro" ${MOUNTS[@]+"${MOUNTS[@]}"} \
-    ${CACHE[@]+"${CACHE[@]}"} \
+    ${CACHE[@]+"${CACHE[@]}"} ${URING[@]+"${URING[@]}"} \
     "$IMAGE" $ARGS ${SERVE:---host 0.0.0.0 --port 8000}
   echo "started $NAME on http://$HOST:$PORT  logs: docker logs -f $NAME  stop: docker rm -f $NAME"
   exit 0
