@@ -36,6 +36,7 @@ TYPE=$(get type)
 FILE=$(get file)
 DRAFT=$(get draft)
 DRAFT_REV=$(get draft_revision)
+PREPARE=$(get prepare)
 HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}
 OUT=${OUT:-$PWD/out}
 HOST=${HOST:-127.0.0.1}  # set HOST=0.0.0.0 to serve your LAN
@@ -59,12 +60,25 @@ MEMORY=$(get memory)
 # buffers, which Docker's default seccomp profile blocks
 URING=()
 [ "$(get io_uring)" = true ] && URING=(--security-opt seccomp=unconfined --ulimit memlock=-1:-1)
+# "home: true": the engine's home (signing key, trust store, prepared package) lives in
+# ./cache/<recipe>, with the HF hub mounted inside it read-only
+HOMEDIR=()
+if [ "$(get home)" = true ]; then
+  mkdir -p "cache/$NAME"
+  HOMEDIR=(-v "$PWD/cache/$NAME:/root" -v "$HF_HOME/hub:/root/.cache/huggingface/hub:ro" -e HF_HUB_OFFLINE=1)
+fi
 
 if [ "$SETUP" = 1 ]; then
   docker build -t "$IMAGE" "$BUILD"
   HF_HOME=$HF_HOME hf download "$MODEL" ${FILE:+"$FILE"} --revision "$REV"
   if [ -n "$DRAFT" ]; then
     HF_HOME=$HF_HOME hf download "$DRAFT" --revision "$DRAFT_REV"
+  fi
+  # "prepare": a one-time step before the first start (Flare exports its package here)
+  if [ -n "$PREPARE" ]; then
+    # shellcheck disable=SC2086  # a flat command line from the recipe
+    docker run --rm --gpus all --ipc host --memory "$MEMORY" \
+      ${HOMEDIR[@]+"${HOMEDIR[@]}"} ${URING[@]+"${URING[@]}"} "$IMAGE" $PREPARE
   fi
 fi
 docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "no image $IMAGE, run with --setup"; exit 1; }
@@ -75,12 +89,20 @@ if [ "$TYPE" = server ]; then
   ARGS=$(get args)
   ARGS=${ARGS//\{model\}/$(snap "$MODEL" "$REV")${FILE:+/$FILE}}
   ARGS=${ARGS//\{draft\}/$(snap "$DRAFT" "$DRAFT_REV")}
+  # Flare starts unattended only with its package's signing key approved: {dev_key} is the
+  # fingerprint of the local development key the export made, the sha256 of its public key
+  if [[ $ARGS == *"{dev_key}"* ]]; then
+    KEY=$(docker run --rm ${HOMEDIR[@]+"${HOMEDIR[@]}"} "$IMAGE" python3 -c 'import hashlib, json
+k = json.load(open("/root/.config/flare/development-publisher.json"))[0]["public_key"]
+print(hashlib.sha256(bytes(k)).hexdigest())' | tail -1)
+    ARGS=${ARGS//\{dev_key\}/$KEY}
+  fi
   # vLLM and llama.cpp take --host/--port; ComfyUI sets its own in "serve"
   SERVE=$(get serve)
   # shellcheck disable=SC2086  # args are a flat flag list from the recipe
   docker run -d --init --name "$NAME" --gpus all --ipc host --memory "$MEMORY" \
     -p "$HOST:$PORT:8000" -v "$HF_HOME:/hf:ro" ${MOUNTS[@]+"${MOUNTS[@]}"} \
-    ${CACHE[@]+"${CACHE[@]}"} ${URING[@]+"${URING[@]}"} \
+    ${CACHE[@]+"${CACHE[@]}"} ${URING[@]+"${URING[@]}"} ${HOMEDIR[@]+"${HOMEDIR[@]}"} \
     "$IMAGE" $ARGS ${SERVE:---host 0.0.0.0 --port 8000}
   echo "started $NAME on http://$HOST:$PORT  logs: docker logs -f $NAME  stop: docker rm -f $NAME"
   exit 0

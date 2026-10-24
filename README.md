@@ -40,6 +40,7 @@ Server recipes start in the background and serve on port 8000 (`HOST`, `PORT` to
 | `nemotron-3.5-bolt` | Nemotron 3.5 Bolt 74B, 2-bit QAD | vLLM nightly 77154ca + b12x | 29 tok/s |
 | `nemotron-3.5-bolt-lilicorr` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 93-104 tok/s on code, JSON, rewrites |
 | `qwen3.8-flash-next-fp4` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 44-62 tok/s on JSON, code, rewrites |
+| `qwen3.8-flash-next-fp4-flare` | same model, MTP 5 | NVIDIA Flare 5f37bd1 (research prototype) | 42-66 tok/s on JSON, rewrites, code, explanations |
 
 ### LLM quantization
 
@@ -68,6 +69,20 @@ Server recipes start in the background and serve on port 8000 (`HOST`, `PORT` to
 | `drama-3` | Fish Audio Drama 3, text to speech | SGLang-Omni 22d4ace | 1.1× real time, one request |
 
 ## CHANGELOG
+
+### 2026-10-24
+
+#### Qwen3.8-Flash-Next FP4-Local on NVIDIA Flare
+
+Added a server recipe for the same `nvidia/Qwen3.8-Flash-Next-FP4-Local` checkpoint on NVIDIA's Flare research
+prototype (`flare-local-inference` 5f37bd1, built from source in `images/flare`). `--setup` exports a Flare
+package once, then the server starts in under a minute. Measured on one Spark, one user, temperature 0.7,
+MTP 5, median of 5: JSON 66.2, rewrite 49.4, code 45.8, explain 42.4, story 27.6 tok/s. The recipe caps Flare's
+memory at 25 GiB below the total, so the KV cache (430k tokens) leaves 32 GiB free.
+
+`run-recipe.sh` gains two recipe keys: `home: true` keeps an engine's home directory (signing key, trust store,
+prepared package) in `./cache/<recipe>`, and `prepare:` runs a one-time step during `--setup`. In server args,
+`{dev_key}` becomes the fingerprint of the locally generated Flare signing key.
 
 ### 2026-10-23
 

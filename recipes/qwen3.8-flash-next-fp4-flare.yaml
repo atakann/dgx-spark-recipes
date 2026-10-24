@@ -1,0 +1,15 @@
+# Qwen3.8-Flash-Next-FP4-Local on NVIDIA Flare (research prototype, flare-local-inference @5f37bd1). One DGX Spark.
+# Measured 2026-10-24: JSON 66, rewrite 49, code 46, explain 42 tok/s (one user, temperature 0.7, MTP 5, median of 5).
+# --setup exports a Flare package once (about 35 min); later starts take under a minute.
+# --memory-limit -25G leaves 25 GiB to the host: at Flare's default the KV cache takes all but ~13 GiB, and load
+# spikes of 5-7 GiB then come close to the driver's out-of-memory point. KV is still 430k tokens; 32 GiB stayed free.
+type: server
+image: dgx-spark-recipes/flare:5f37bd1
+build: images/flare
+model: nvidia/Qwen3.8-Flash-Next-FP4-Local
+revision: b9ce18a6887e18c089fdea8509a33e63429a3300
+memory: 112g
+home: true
+io_uring: true
+prepare: ignition export qwen3.8-flash --gpus 0 --mtp-draft-tokens 5 --max-concurrency 4 --output /root/out/qwen38-flash-tp1-mtp5-c4
+args: flare run /root/out/qwen38-flash-tp1-mtp5-c4.safetensors --gpus 0 --offline --dangerously-approve-key {dev_key} --dangerously-accept-publisher local-development --memory-limit -25G --served-model-name qwen3.8-flash-next
