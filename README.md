@@ -1,7 +1,7 @@
 # DGX Spark recipes
 
-Recipes for the NVIDIA DGX Spark (GB10, 128 GB unified memory): image, video, audio,
-quantization, and LLM serving. Each one was run and measured on a Spark.
+Recipes for the NVIDIA DGX Spark (GB10, 128 GB unified memory), on one Spark or two: LLM serving, image,
+video and speech. Each one was run and measured on Sparks.
 
 Every recipe:
 - pins the container image, the engine version and the model revision
