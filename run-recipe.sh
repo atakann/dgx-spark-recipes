@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 
 usage() {
   echo "usage: $0 <recipe> [--setup] [-- script args]"
-  ls recipes | sed 's/\.yaml$//; s/^/  /'
+  find recipes -name '*.yaml' | sort | sed 's|^recipes/||; s/\.yaml$//; s/^/  /'
   exit 1
 }
 [ $# -ge 1 ] || usage
@@ -69,7 +69,8 @@ if [ "$(get home)" = true ]; then
 fi
 
 if [ "$SETUP" = 1 ]; then
-  docker build -t "$IMAGE" "$BUILD"
+  # a recipe with "build:" makes its image here; one without it runs a published image
+  if [ -n "$BUILD" ]; then docker build -t "$IMAGE" "$BUILD"; else docker pull "$IMAGE"; fi
   HF_HOME=$HF_HOME hf download "$MODEL" ${FILE:+"$FILE"} --revision "$REV"
   if [ -n "$DRAFT" ]; then
     HF_HOME=$HF_HOME hf download "$DRAFT" --revision "$DRAFT_REV"

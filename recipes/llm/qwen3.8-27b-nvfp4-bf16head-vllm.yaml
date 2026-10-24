@@ -1,0 +1,9 @@
+# Qwen3.8-27B NVFP4 with a BF16 lm_head (atakans/Qwen3.8-27B-NVFP4-BF16head), on vLLM 0.30.0. One DGX Spark.
+# Measured 2026-10-24: 11.1 tok/s on every prompt type (one user, temperature 0.7, no draft); first start 8 min, 41 GiB stayed free.
+# Made with NVIDIA ModelOpt 0.47.0; the model card has the quantization settings and the quality numbers.
+type: server
+image: vllm/vllm-openai:v0.30.0
+model: atakans/Qwen3.8-27B-NVFP4-BF16head
+revision: 393d750c371b10740a8fc1c13ab146eda0d5c221
+memory: 80g
+args: {model} --served-model-name qwen3.8-27b --max-model-len 131072 --gpu-memory-utilization 0.60 --max-num-seqs 8 --reasoning-parser qwen3

@@ -15,60 +15,72 @@ Not affiliated with NVIDIA or any model maker. Each model keeps its own license.
 ```bash
 git clone https://github.com/atakann/dgx-spark-recipes
 cd dgx-spark-recipes
-./run-recipe.sh qwen-image-2.1-turbo --setup
+./run-recipe.sh image/qwen-image-2.1-turbo --setup
 ```
 
 `--setup` builds the image and downloads the model at the pinned revision. Leave it out
 on later runs. Script arguments go after `--`:
 
 ```bash
-./run-recipe.sh qwen-image-2.1-turbo -- --prompt "a red fox in fresh snow" --seed 7
+./run-recipe.sh image/qwen-image-2.1-turbo -- --prompt "a red fox in fresh snow" --seed 7
 ```
 
 Needs Docker with the NVIDIA runtime (DGX OS has both) and the `hf` CLI for `--setup`.
 
 ## Recipes
 
-Server recipes start in the background and serve on port 8000 (`HOST`, `PORT` to change).
+A recipe is `recipes/<task>/<name>.yaml` and runs as `./run-recipe.sh <task>/<name>`.
+LLM recipe names end in the engine. Server recipes start in the background and serve on port 8000
+(`HOST`, `PORT` to change).
 
-### LLM servers
+### LLM servers (`llm/`)
 
-| recipe | model | engine | one Spark, one user |
-|---|---|---|---|
-| `ornith-1.5-122b-q4km` | Ornith-1.5-122B, Q4_K_M GGUF | llama.cpp v0.7.0, built for sm_121 | 28.2 tok/s |
-| `ornith-1.5-122b-nvfp4` | Ornith-1.5-122B, NVFP4 | vLLM nightly 77154ca | 26.5 tok/s, prefill 2,447 tok/s |
-| `nemotron-3.5-bolt` | Nemotron 3.5 Bolt 74B, 2-bit QAD | vLLM nightly 77154ca + b12x | 29 tok/s |
-| `nemotron-3.5-bolt-lilicorr` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 93-104 tok/s on code, JSON, rewrites |
-| `qwen3.8-flash-next-fp4` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 44-62 tok/s on JSON, code, rewrites |
-| `qwen3.8-flash-next-fp4-flare` | same model, MTP 5 | NVIDIA Flare 5f37bd1 (research prototype) | 42-66 tok/s on JSON, rewrites, code, explanations |
+| recipe | model | engine | Sparks | one user |
+|---|---|---|---|---|
+| `ornith-1.5-122b-q4km-llamacpp` | Ornith-1.5-122B, Q4_K_M GGUF | llama.cpp v0.7.0, built for sm_121 | 1 | 28.2 tok/s |
+| `ornith-1.5-122b-nvfp4-vllm` | Ornith-1.5-122B, NVFP4 | vLLM nightly 77154ca | 1 | 26.5 tok/s, prefill 2,447 tok/s |
+| `nemotron-3.5-bolt-vllm` | Nemotron 3.5 Bolt 74B, 2-bit QAD | vLLM nightly 77154ca + b12x | 1 | 29 tok/s |
+| `nemotron-3.5-bolt-lilicorr-vllm` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 1 | 93-104 tok/s on code, JSON, rewrites |
+| `qwen3.8-flash-next-fp4-vllm` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 1 | 44-62 tok/s on JSON, code, rewrites |
+| `qwen3.8-flash-next-fp4-flare` | same model, MTP 5 | NVIDIA Flare 5f37bd1 (research prototype) | 1 | 42-66 tok/s on JSON, rewrites, code, explanations |
+| `qwen3.8-27b-nvfp4-bf16head-vllm` | Qwen3.8-27B, NVFP4 with a BF16 lm_head ([atakans](https://huggingface.co/atakans/Qwen3.8-27B-NVFP4-BF16head)) | vLLM 0.30.0 | 1 | 11.1 tok/s |
 
-### LLM quantization
+### Image (`image/`)
 
-| recipe | task | engine | one Spark |
-|---|---|---|---|
-| `qwen3.8-27b-nvfp4-quant` | Qwen3.8-27B to NVFP4 | ModelOpt 0.47.0 | 50 min, KLD 0.0295 vs BF16 |
+| recipe | model | engine | Sparks | time |
+|---|---|---|---|---|
+| `qwen-image-2.1-turbo` | Qwen-Image 2.1 Turbo, BF16, 8 steps | diffusers 0.41.0 | 1 | 55.5 s per 2048² image |
+| `qwen-image-2.1-base` | Qwen-Image 2.1, BF16, 40 steps | diffusers 0.41.0 | 1 | 257 s per 2048² image |
+| `flux-3-klein` | FLUX 3 Klein, BF16 and NVFP4 | ComfyUI v0.41.0 | 1 | 7.2 s per 1 MP image (NVFP4) |
 
-### Image
+### Video (`video/`)
 
-| recipe | model | engine | one Spark |
-|---|---|---|---|
-| `qwen-image-2.1-turbo` | Qwen-Image 2.1 Turbo, BF16, 8 steps | diffusers 0.41.0 | 55.5 s per 2048² image |
-| `qwen-image-2.1-base` | Qwen-Image 2.1, BF16, 40 steps | diffusers 0.41.0 | 257 s per 2048² image |
-| `flux-3-klein` | FLUX 3 Klein, BF16 and NVFP4 | ComfyUI v0.41.0 | 7.2 s per 1 MP image (NVFP4) |
+| recipe | model | engine | Sparks | time |
+|---|---|---|---|---|
+| `fasth3-qad` | FastH3-QAD-v2, NVFP4, video with sound | FastVideo d4f1445 | 1 | 8.1 min for 10 s of 1344×768 |
 
-### Video
+### Speech (`speech/`)
 
-| recipe | model | engine | one Spark |
-|---|---|---|---|
-| `fasth3-qad` | FastH3-QAD-v2, NVFP4, video with sound | FastVideo d4f1445 | 8.1 min for 10 s of 1344×768 |
-
-### Speech
-
-| recipe | model | engine | one Spark |
-|---|---|---|---|
-| `drama-3` | Fish Audio Drama 3, text to speech | SGLang-Omni 22d4ace | 1.1× real time, one request |
+| recipe | model | engine | Sparks | speed |
+|---|---|---|---|---|
+| `drama-3` | Fish Audio Drama 3, text to speech | SGLang-Omni 22d4ace | 1 | 1.1× real time, one request |
 
 ## CHANGELOG
+
+### 2026-10-24 (2)
+
+#### Recipes move into task folders; the quantization recipe becomes a server recipe
+
+Recipes now sit in `recipes/llm`, `recipes/image`, `recipes/video` and `recipes/speech`, and run as
+`./run-recipe.sh <task>/<name>` (for example `./run-recipe.sh llm/qwen3.8-flash-next-fp4-flare`).
+LLM recipe names end in the engine: `ornith-1.5-122b-q4km` is now `llm/ornith-1.5-122b-q4km-llamacpp`,
+`ornith-1.5-122b-nvfp4` is `llm/ornith-1.5-122b-nvfp4-vllm`, `nemotron-3.5-bolt` and
+`nemotron-3.5-bolt-lilicorr` end in `-vllm`, and `qwen3.8-flash-next-fp4` is `llm/qwen3.8-flash-next-fp4-vllm`.
+The tables gain a Sparks column.
+
+The ModelOpt recipe that quantized Qwen3.8-27B is gone. In its place, `llm/qwen3.8-27b-nvfp4-bf16head-vllm`
+downloads the finished checkpoint (`atakans/Qwen3.8-27B-NVFP4-BF16head`) and serves it on vLLM 0.30.0:
+11.1 tok/s, one user, on every prompt type. A recipe without `build:` now pulls its published image.
 
 ### 2026-10-24
 
