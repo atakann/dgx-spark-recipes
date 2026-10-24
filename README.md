@@ -33,6 +33,15 @@ A recipe is `recipes/<task>/<name>.yaml` and runs as `./run-recipe.sh <task>/<na
 LLM recipe names end in the engine. Server recipes start in the background and serve on port 8000
 (`HOST`, `PORT` to change).
 
+Two-Spark recipes (`Sparks` 2) run from the first Spark and start the second one over ssh. Set `WORKER` to the
+second Spark's ssh host (key login, same user); the QSFP link, its RoCE devices and the head's address are found
+on each Spark. `--setup` copies the image to the worker and downloads the model there too; `--stop` stops both.
+
+```bash
+WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --setup
+WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
+```
+
 ### LLM servers (`llm/`)
 
 | recipe | model | engine | Sparks | one user |
@@ -43,6 +52,7 @@ LLM recipe names end in the engine. Server recipes start in the background and s
 | `nemotron-3.5-bolt-lilicorr-vllm` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 1 | 93-104 tok/s on code, JSON, rewrites |
 | `qwen3.8-flash-next-fp4-vllm` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 1 | 44-62 tok/s on JSON, code, rewrites |
 | `qwen3.8-flash-next-fp4-flare` | same model, MTP 5 | NVIDIA Flare 5f37bd1 (research prototype) | 1 | 42-66 tok/s on JSON, rewrites, code, explanations |
+| `qwen3.8-flash-next-fp4-vllm-tp2` | same model, MTP 4, TP=2 (NVIDIA's cluster command) | vLLM 8244d1c (eugr/spark-vllm-b12x) | 2 | 74-98 tok/s on JSON, code, rewrites, explanations |
 | `qwen3.8-27b-nvfp4-bf16head-vllm` | Qwen3.8-27B, NVFP4 with a BF16 lm_head ([atakans](https://huggingface.co/atakans/Qwen3.8-27B-NVFP4-BF16head)) | vLLM 0.30.0 | 1 | 11.1 tok/s |
 
 ### Image (`image/`)
@@ -67,7 +77,23 @@ LLM recipe names end in the engine. Server recipes start in the background and s
 
 ## CHANGELOG
 
-### 2026-10-24 (2)
+### 2026-10-25
+
+#### Two-Spark recipes: Qwen3.8-Flash-Next FP4-Local with TP=2
+
+`run-recipe.sh` runs recipes with `sparks: 2` on two DGX Sparks: one vLLM tensor-parallel rank a Spark, the worker
+first (headless), then the head with the API. It finds the QSFP link on each Spark (the RoCE devices that are up and
+the head's address on them), passes them to NCCL, copies the image to the worker and downloads the model there during
+`--setup`, and stops both with `--stop`. The containers get the RDMA devices and `IPC_LOCK`, not `--privileged`.
+A recipe's `env:` line adds engine variables.
+
+The first two-Spark recipe is `llm/qwen3.8-flash-next-fp4-vllm-tp2`, NVIDIA's vLLM cluster playbook command for
+`nvidia/Qwen3.8-Flash-Next-FP4-Local` on the one-Spark recipe's image, with up to 32 images a request instead of 1.
+Measured on two Sparks, one user, temperature 0.7, MTP 4, median of 5: JSON 98.0, code 95.0, rewrite 75.1,
+explain 73.5, story 51.3 tok/s. The one-Spark recipe gives 62.4 and 58.0 on JSON and code. The collectives run over
+RoCE on both HCAs.
+
+### 2026-10-24
 
 #### Recipes move into task folders; the quantization recipe becomes a server recipe
 
@@ -81,8 +107,6 @@ The tables gain a Sparks column.
 The ModelOpt recipe that quantized Qwen3.8-27B is gone. In its place, `llm/qwen3.8-27b-nvfp4-bf16head-vllm`
 downloads the finished checkpoint (`atakans/Qwen3.8-27B-NVFP4-BF16head`) and serves it on vLLM 0.30.0:
 11.1 tok/s, one user, on every prompt type. A recipe without `build:` now pulls its published image.
-
-### 2026-10-24
 
 #### Qwen3.8-Flash-Next FP4-Local on NVIDIA Flare
 
