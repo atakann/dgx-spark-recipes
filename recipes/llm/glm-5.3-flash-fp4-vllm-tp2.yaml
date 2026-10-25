@@ -1,0 +1,18 @@
+# GLM-5.3-Flash-FP4-Local on two DGX Sparks, TP=2 over the QSFP link: the command from NVIDIA's model card.
+# Run it on the first Spark with WORKER=<ssh host of the second Spark>; --setup copies the image and the model.
+# Measured 2026-10-25: 31 tok/s for one user, 55 for four (thinking off); 8k prompt in 3.6 s;
+# first start 8 min, 12 GiB free at the low point, 20 GiB while serving.
+# Changed from the card: PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True (without it free memory falls to
+# about 4 GiB right after the weights load), 0.80 with a 3G KV cache (302k tokens) instead of 0.87,
+# 256k context instead of 500k, text only.
+type: server
+sparks: 2
+image: dgx-spark-recipes/vllm-glm-flash:8244d1c
+build: images/vllm-glm-flash
+model: nvidia/GLM-5.3-Flash-FP4-Local
+revision: 76348ddb2be2e35e39ecfc00e75dc07703f4f3d5
+memory: 112g
+cache: true
+io_uring: true
+env: PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True VLLM_ENABLE_ROCE_ALLREDUCE=1 VLLM_ROCE_ALLREDUCE_MAX_SIZE=2MB NCCL_BUFFSIZE=1048576 NCCL_MAX_CTAS=8 B12X_WEIGHTS_COMPILE_WORKERS=4 B12X_STATE_COMPILE_WORKERS=4 B12X_BIND_COMPILE_WORKERS=4
+args: {model} --served-model-name glm-5.3-flash --tensor-parallel-size 2 --mamba-cache-mode align --enable-prefix-caching --enable-chunked-prefill --dtype bfloat16 --kv-cache-dtype fp8 --quantization modelopt_mixed --attention-backend B12X --block-size 256 --moe-backend b12x --linear-backend b12x --no-enable-flashinfer-autotune --load-format b12x --max-model-len 262144 --max-num-seqs 4 --max-num-batched-tokens 4096 --speculative-config {"method":"mtp","num_speculative_tokens":5,"moe_backend":"humming","attention_backend":"B12X"} --reasoning-parser glm45 --tool-call-parser glm47 --enable-auto-tool-choice --limit-mm-per-prompt {"image":0,"video":0} --gpu-memory-utilization 0.80 --kv-cache-memory-bytes 3G

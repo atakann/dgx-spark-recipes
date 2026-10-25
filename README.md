@@ -53,6 +53,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `qwen3.8-flash-next-fp4-vllm` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 1 | 44-62 tok/s on JSON, code, rewrites |
 | `qwen3.8-flash-next-fp4-flare` | same model, MTP 5 | NVIDIA Flare 5f37bd1 (research prototype) | 1 | 42-66 tok/s on JSON, rewrites, code, explanations |
 | `qwen3.8-flash-next-fp4-vllm-tp2` | same model, MTP 4, TP=2 (NVIDIA's cluster command) | vLLM 8244d1c (eugr/spark-vllm-b12x) | 2 | 74-98 tok/s on JSON, code, rewrites, explanations |
+| `glm-5.3-flash-fp4-vllm-tp2` | GLM-5.3-Flash FP4-Local (NVIDIA's QAD NVFP4), MTP 5, TP=2 (the card's command) | vLLM 8244d1c (eugr/spark-vllm-b12x) | 2 | 31 tok/s, 55 for four users |
 | `qwen3.8-27b-nvfp4-bf16head-vllm` | Qwen3.8-27B, NVFP4 with a BF16 lm_head ([atakans](https://huggingface.co/atakans/Qwen3.8-27B-NVFP4-BF16head)) | vLLM 0.30.0 | 1 | 11.1 tok/s |
 
 ### Image (`image/`)
