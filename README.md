@@ -80,6 +80,10 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 
 ### 2026-10-25
 
+#### GLM-5.3-Flash FP4-Local on two Sparks
+
+`llm/glm-5.3-flash-fp4-vllm-tp2` runs `nvidia/GLM-5.3-Flash-FP4-Local` with TP=2 and MTP 5, the command from NVIDIA's model card, on its own image `images/vllm-glm-flash` (the same eugr/spark-vllm-b12x digest with GLM's environment). It sets `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` on both Sparks: without it free memory fell to 4 GiB right after the weights loaded, with it the low point was 12 GiB and 20 GiB stays free while serving. Other changes from the card: `--gpu-memory-utilization 0.80` with a 3G KV cache (302k tokens), 256k context, text only. Measured from a clean copy, thinking off: 33.4 tok/s for one user, 41.3 for two, 59.9 for four (the server limit); an 8k prompt reads in 3.6 s.
+
 #### Two-Spark recipes: Qwen3.8-Flash-Next FP4-Local with TP=2
 
 `run-recipe.sh` runs recipes with `sparks: 2` on two DGX Sparks: one vLLM tensor-parallel rank a Spark, the worker
