@@ -1,0 +1,14 @@
+# Nanbeige4.3-33B NVFP4 (primitive-ai) with ProCreations' DFlash2 draft (7 tokens), on vLLM. Text only. One DGX Spark.
+# Measured 2026-10-28, thinking off, temperature 0.7, one user, 300 tokens, best of 5: JSON 24.2 tok/s, code 21.9, explain 16.5,
+# rewrite 14.0, story 13.2, Turkish translation 10.9 (no draft: 11.3 on every prompt type). 30 GiB stays free; first start ~6 min.
+# The draft was made for SGLang; vLLM 77154ca loads it as DFlash2DraftModel. Sampling defaults come from the
+# model card (temperature 0.6, top_p 0.95): the repo's generation_config has none, and vLLM would use 1.0.
+type: server
+image: dgx-spark-recipes/vllm:77154ca
+build: images/vllm
+model: primitive-ai/Nanbeige4.3-33B-NVFP4
+revision: 5ddf8788ed1fa4bec0c0b6fc74ddb0bef7dc4212
+memory: 112g
+draft: ProCreations/Nanbeige4.3-33B-DFlash2
+draft_revision: 22a73c4d099e61a34b6a26251b0a3a98a7b41746
+args: {model} --served-model-name nanbeige --max-model-len 262144 --kv-cache-memory-bytes 56G --max-num-seqs 4 --enable-prefix-caching --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder --override-generation-config {"temperature":0.6,"top_p":0.95} --speculative-config {"method":"dflash","model":"{draft}","num_speculative_tokens":7}

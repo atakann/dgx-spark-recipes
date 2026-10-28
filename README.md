@@ -55,6 +55,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `qwen3.8-flash-next-fp4-vllm-tp2` | same model, MTP 4, TP=2 (NVIDIA's cluster command) | vLLM 8244d1c (eugr/spark-vllm-b12x) | 2 | 74-98 tok/s on JSON, code, rewrites, explanations |
 | `glm-5.3-flash-fp4-vllm-tp2` | GLM-5.3-Flash FP4-Local (NVIDIA's QAD NVFP4), MTP 5, TP=2 (the card's command) | vLLM 8244d1c (eugr/spark-vllm-b12x) | 2 | 31 tok/s, 55 for four users |
 | `qwen3.8-27b-nvfp4-bf16head-vllm` | Qwen3.8-27B, NVFP4 with a BF16 lm_head ([atakans](https://huggingface.co/atakans/Qwen3.8-27B-NVFP4-BF16head)) | vLLM 0.30.0 | 1 | 11.1 tok/s |
+| `nanbeige4.3-33b-nvfp4-dflash2-vllm` | Nanbeige4.3-33B, NVFP4 (primitive-ai), with ProCreations' DFlash2 draft | vLLM nightly 77154ca + b12x | 1 | 22-24 tok/s on JSON and code, 11.3 without the draft |
 
 ### Image (`image/`)
 
@@ -77,6 +78,25 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `drama-3` | Fish Audio Drama 3, text to speech | SGLang-Omni 22d4ace | 1 | 1.1× real time, one request |
 
 ## CHANGELOG
+
+### 2026-10-28
+
+#### Nanbeige4.3-33B NVFP4 with a DFlash2 draft
+
+`llm/nanbeige4.3-33b-nvfp4-dflash2-vllm` runs `primitive-ai/Nanbeige4.3-33B-NVFP4` (22 GB) with
+`ProCreations/Nanbeige4.3-33B-DFlash2` (3 layers, blocks of 8, made for SGLang) on the `images/vllm` image. vLLM loads
+the draft as `DFlash2DraftModel` with `"method":"dflash"` and 7 draft tokens. The repo's `generation_config.json` has
+no sampling values, so vLLM would sample at temperature 1.0; the recipe sets the model card's 0.6 and top_p 0.95 as
+server defaults. 256k context, a 56 GiB KV cache, port 8000, model name `nanbeige`.
+
+Measured with the command below, one user, thinking off, temperature 0.7, 300 tokens, best of 5: JSON 24.2 tok/s,
+code 21.9, explain 16.5, rewrite 14.0, story 13.2, translation to Turkish 10.9. Without the draft every prompt type
+runs at 11.3. On random-word prompts the draft gives nothing (11.0). 30 GiB stays free; the first start takes about
+6 minutes.
+
+```bash
+./run-recipe.sh llm/nanbeige4.3-33b-nvfp4-dflash2-vllm --setup
+```
 
 ### 2026-10-25
 
