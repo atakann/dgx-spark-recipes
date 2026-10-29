@@ -1,0 +1,14 @@
+# Ling-3.0-flash MXFP4 on one DGX Spark: SGLang with MTP (3 draft steps) and an online FP8 lm_head, FlashInfer MoE.
+# This is NVIDIA's DGX Spark setup (inclusionAI ling-cookbook) without the humming MoE kernel: with humming, long
+# answers carried broken tokens in my tests (Chinese characters inside an SVG URL, cut lines), also on SGLang main.
+# Measured 2026-10-29 with this command, one user, thinking off, temperature 0.7, 300 tokens, best of 5: JSON 57.3 tok/s,
+# code 51.1, rewrite 54.9, explain 51.4, story 40.1, Turkish translation 41.5; random words 23.9, 48.9 for four users.
+# 0 of 8 broken SVG answers; GPQA Diamond 68.2%, IFEval 84.0% (thinking off). 29 GiB stay free; first start ~9 min.
+type: server
+image: dgx-spark-recipes/sglang-ling:20621aa-079d404
+build: images/sglang-ling
+model: inclusionAI/Ling-3.0-flash-fp4
+revision: 3bae1cf4011b48475b2cc038fff283af49053ebc
+memory: 112g
+cache: true
+args: --model-path {model} --served-model-name ling-3.0-flash --tp-size 1 --dtype bfloat16 --max-running-requests 4 --max-mamba-cache-size 16 --chunked-prefill-size 8192 --max-prefill-tokens 16384 --page-size 64 --context-length 262144 --cuda-graph-backend-decode full --cuda-graph-max-bs-decode 4 --cuda-graph-backend-prefill disabled --reasoning-parser ling3 --tool-call-parser ling3 --preferred-sampling-params {"temperature":0.6,"top_p":0.95,"top_k":20} --attention-backend flashinfer --disable-flashinfer-autotune --mem-fraction-static 0.68 --fp8-gemm-backend cutlass --moe-runner-backend flashinfer_mxfp4 --flashinfer-mxfp4-moe-precision default --disable-shared-experts-fusion --speculative-algorithm NEXTN --speculative-draft-model-path {model} --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-metrics --json-model-override-args {"max_position_embeddings":262144,"rope_scaling":{"rope_type":"yarn","factor":2.0,"rope_theta":6000000,"partial_rotary_factor":0.5,"original_max_position_embeddings":131072}}

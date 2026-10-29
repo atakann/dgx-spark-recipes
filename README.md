@@ -56,6 +56,8 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `glm-5.3-flash-fp4-vllm-tp2` | GLM-5.3-Flash FP4-Local (NVIDIA's QAD NVFP4), MTP 5, TP=2 (the card's command) | vLLM 8244d1c (eugr/spark-vllm-b12x) | 2 | 31 tok/s, 55 for four users |
 | `qwen3.8-27b-nvfp4-bf16head-vllm` | Qwen3.8-27B, NVFP4 with a BF16 lm_head ([atakans](https://huggingface.co/atakans/Qwen3.8-27B-NVFP4-BF16head)) | vLLM 0.30.0 | 1 | 11.1 tok/s |
 | `nanbeige4.3-33b-nvfp4-dflash2-vllm` | Nanbeige4.3-33B, NVFP4 (primitive-ai), with ProCreations' DFlash2 draft | vLLM nightly 77154ca + b12x | 1 | 22-24 tok/s on JSON and code, 11.3 without the draft |
+| `ling-3.0-flash-mxfp4-sglang` | Ling-3.0-flash 124B-A5B, MXFP4 (inclusionAI), MTP 3, FP8 lm_head, FlashInfer MoE | SGLang 20621aa + inclusionAI 079d404 | 1 | 51-57 tok/s on JSON, code, rewrites |
+| `ling-3.0-flash-fp8-sglang-tp2` | Ling-3.0-flash, FP8 (inclusionAI), MTP 3, FP8 lm_head, TP=2 | SGLang 20621aa + inclusionAI 079d404 | 2 | 72-80 tok/s on JSON, code, rewrites, explanations |
 
 ### Image (`image/`)
 
@@ -78,6 +80,39 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `drama-3` | Fish Audio Drama 3, text to speech | SGLang-Omni 22d4ace | 1 | 1.1× real time, one request |
 
 ## CHANGELOG
+
+### 2026-10-29
+
+#### Ling-3.0-flash on one Spark (MXFP4) and on two (FP8), SGLang
+
+`llm/ling-3.0-flash-mxfp4-sglang` runs `inclusionAI/Ling-3.0-flash-fp4` (70 GB: MXFP4 routed experts, block FP8 dense
+layers) on one Spark; `llm/ling-3.0-flash-fp8-sglang-tp2` runs `inclusionAI/Ling-3.0-flash-fp8` (128.5 GB) at TP=2.
+Both use MTP with 3 draft steps (the model's own NEXTN layer) and an online FP8 lm_head, the setup of NVIDIA's and
+Ant Ling's DGX Spark guide (inclusionAI/ling-cookbook), with one change: that guide uses the humming MoE kernel, and
+with it 4 of 14 to 7 of 8 answers to the same SVG prompt carried broken tokens in my tests (Chinese characters inside
+the SVG namespace URL, lines cut short), on their branch and on SGLang main of 2026-10-29. The one-Spark recipe uses
+the FlashInfer MXFP4 MoE kernel and the two-Spark one SGLang's default kernel for FP8: 0 of 8 broken on each.
+
+`images/sglang-ling` is SGLang's nightly at 20621aa (the base of the inclusionAI branch) with that branch's one
+commit: three files, fetched at the pinned commit and checked against their sha256. Two-Spark recipes with
+`engine: sglang` start SGLang's ranks with `--dist-init-addr`; vLLM recipes are unchanged. `/metrics` is on.
+
+Measured with the commands below, one user, thinking off, temperature 0.7, 300 tokens, best of 5:
+
+| | JSON | code | rewrite | explain | story | translation | random words | four users |
+|---|---|---|---|---|---|---|---|---|
+| MXFP4, one Spark | 57.3 | 51.1 | 54.9 | 51.4 | 40.1 | 41.5 | 23.9 | 48.9 |
+| FP8, two Sparks | 78.0 | 78.2 | 80.1 | 71.6 | 56.4 | 57.3 | 34.2 | 71.2 |
+
+The draft helps on text it can predict and costs on text it cannot (random words). GPQA Diamond and IFEval with
+thinking off: 68.2% and 84.0% for the one-Spark recipe; the FP8 checkpoint at TP=2 without the draft and the FP8
+lm_head scored 65.7% and 84.5%. 28-29 GiB stay free on each Spark; the first start takes about 9 minutes on one
+Spark and 14 on two, with the image copy.
+
+```bash
+./run-recipe.sh llm/ling-3.0-flash-mxfp4-sglang --setup
+WORKER=spark2 ./run-recipe.sh llm/ling-3.0-flash-fp8-sglang-tp2 --setup
+```
 
 ### 2026-10-28
 

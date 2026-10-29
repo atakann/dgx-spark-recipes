@@ -1,0 +1,17 @@
+# Ling-3.0-flash FP8 on two DGX Sparks, TP=2 over the QSFP link: SGLang with MTP (3 draft steps) and an online FP8 lm_head.
+# Run it on the first Spark with WORKER=<ssh host of the second Spark>; --setup builds the image, copies it and downloads the model on both.
+# Measured 2026-10-29 with this command, one user, thinking off, temperature 0.7, 300 tokens, best of 5: JSON 78.0 tok/s,
+# code 78.2, rewrite 80.1, explain 71.6, story 56.4, Turkish translation 57.3; random words 34.2, 71.2 for four users.
+# 0 of 8 broken SVG answers. 28 GiB stay free on each Spark; first start ~14 min with the image copy.
+# NVIDIA's DGX Spark guide runs the MXFP4 checkpoint on one Spark with the humming MoE kernel, which put broken
+# tokens into long answers in my tests; this keeps SGLang's default MoE kernel for FP8.
+type: server
+sparks: 2
+engine: sglang
+image: dgx-spark-recipes/sglang-ling:20621aa-079d404
+build: images/sglang-ling
+model: inclusionAI/Ling-3.0-flash-fp8
+revision: 88d48c5a46e1b2f609144e83d95b8ac47528b12e
+memory: 112g
+cache: true
+args: --model-path {model} --served-model-name ling-3.0-flash --tp-size 2 --dtype bfloat16 --max-running-requests 4 --max-mamba-cache-size 16 --chunked-prefill-size 8192 --max-prefill-tokens 16384 --page-size 64 --context-length 262144 --cuda-graph-backend-decode full --cuda-graph-max-bs-decode 4 --cuda-graph-backend-prefill disabled --reasoning-parser ling3 --tool-call-parser ling3 --preferred-sampling-params {"temperature":0.6,"top_p":0.95,"top_k":20} --attention-backend flashinfer --disable-flashinfer-autotune --mem-fraction-static 0.68 --fp8-gemm-backend cutlass --disable-shared-experts-fusion --speculative-algorithm NEXTN --speculative-draft-model-path {model} --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-metrics --json-model-override-args {"max_position_embeddings":262144,"rope_scaling":{"rope_type":"yarn","factor":2.0,"rope_theta":6000000,"partial_rotary_factor":0.5,"original_max_position_embeddings":131072}}

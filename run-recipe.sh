@@ -105,14 +105,19 @@ cluster() {
   flags=(--init --name "$NAME" --gpus all --ipc host --network host --shm-size 16g --memory "$MEMORY"
     --device /dev/infiniband --cap-add IPC_LOCK --ulimit memlock=-1:-1 --ulimit nofile=1048576:1048576
     -e NCCL_IB_DISABLE=0 -e NCCL_IGNORE_CPU_AFFINITY=1 ${URING[@]+"${URING[@]}"} "${env_args[@]}")
-  rank_args="--nnodes 2 --master-addr $head_ip --master-port ${MASTER_PORT:-29501}"
+  local worker_flag
+  if [ "$(get engine)" = sglang ]; then  # SGLang ranks meet at --dist-init-addr and have no headless flag
+    rank_args="--nnodes 2 --dist-init-addr $head_ip:${MASTER_PORT:-29501}" worker_flag=""
+  else
+    rank_args="--nnodes 2 --master-addr $head_ip --master-port ${MASTER_PORT:-29501}" worker_flag="--headless"
+  fi
   mkdir -p "cache/$NAME"
   # shellcheck disable=SC2086  # args are a flat flag list from the recipe
   on_worker "mkdir -p \$HOME/.cache/dgx-spark-recipes/$NAME && docker run -d $(printf '%q ' "${flags[@]}" \
     -e NCCL_SOCKET_IFNAME="${worker_link[0]}" -e GLOO_SOCKET_IFNAME="${worker_link[0]}" \
     -e TP_SOCKET_IFNAME="${worker_link[0]}" -e NCCL_IB_HCA="${worker_link[1]}" \
     -v "$HF_HOME:/hf:ro") -v \$HOME/.cache/dgx-spark-recipes/$NAME:/cache -e FLASHINFER_WORKSPACE_BASE=/cache -e MAX_JOBS=4 \
-    $(printf '%q ' "$IMAGE") $(printf '%q ' $ARGS) $rank_args --node-rank 1 --headless" >/dev/null
+    $(printf '%q ' "$IMAGE") $(printf '%q ' $ARGS) $rank_args --node-rank 1 $worker_flag" >/dev/null
   # shellcheck disable=SC2086
   docker run -d "${flags[@]}" \
     -e NCCL_SOCKET_IFNAME="${head_link[0]}" -e GLOO_SOCKET_IFNAME="${head_link[0]}" \
