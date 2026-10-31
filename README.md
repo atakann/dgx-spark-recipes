@@ -1,3 +1,5 @@
+![dgx-spark-recipes: tested recipes for NVIDIA DGX Spark, one Spark or two](assets/banner.png)
+
 # DGX Spark recipes
 
 Recipes for the NVIDIA DGX Spark (GB10, 128 GB unified memory), on one Spark or two: LLM serving, image,
