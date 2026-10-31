@@ -1,7 +1,7 @@
 # DGX Spark recipes
 
 Recipes for the NVIDIA DGX Spark (GB10, 128 GB unified memory), on one Spark or two: LLM serving, image,
-video and speech. Each one was run and measured on Sparks.
+video and speech, and vision (detection and tracking on video). Each one was run and measured on Sparks.
 
 Every recipe:
 - pins the container image, the engine version and the model revision
@@ -79,7 +79,48 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 |---|---|---|---|---|
 | `drama-3` | Fish Audio Drama 3, text to speech | SGLang-Omni 22d4ace | 1 | 1.1× real time, one request |
 
+### Vision (`vision/`)
+
+| recipe | model | engine | Sparks | speed |
+|---|---|---|---|---|
+| `yolo26-tensorrt` | YOLO26s, TensorRT FP16, ByteTrack, one video | Ultralytics 8.4.192, TensorRT 11.2.1.2 | 1 | 164 FPS on a 1080p 30 FPS clip |
+| `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
+
 ## CHANGELOG
+
+### 2026-10-31
+
+#### YOLO26 on video: Ultralytics with TensorRT, and DeepStream
+
+Two recipes detect and track objects in video with `yolo26s.pt` from `Ultralytics/YOLO26` (the same file as
+Ultralytics' GitHub release, sha256 `646f8bc3`). By default both run DeepStream's 1080p 30 FPS H.264 sample
+clip (1443 frames); `-- --source out/<file>` takes your own video from `./out`. Both use TensorRT FP16: on the
+Spark, INT8 is not faster than FP16 for YOLO26n, s and m at batch 1, and it loses 1.1 to 1.8 mAP on COCO val2017.
+
+`vision/yolo26-tensorrt` exports the model to a TensorRT FP16 engine with Ultralytics 8.4.192 (TensorRT 11.2.1.2,
+ModelOpt 0.45.0; 27 s on the first run, then cached in `./out/yolo26-tensorrt`) and runs the loop of
+Ultralytics' tracking docs: read a frame, `model.track(persist=True)` with ByteTrack. One pass of the clip:
+163.6 FPS for decode and tracking, 14.1 tracked objects per frame. It writes the clip with boxes and track IDs
+as H.264. Its image copies the clip from the DeepStream image, so its `--setup` pulls that image too (31.8 GB).
+
+`vision/yolo26-deepstream` runs N copies of the clip through one DeepStream 9.2 pipeline: NVDEC decode, one batch
+of N frames for TensorRT FP16 (YOLO26's NMS-free head, read by our parser in `images/deepstream-yolo`), and NvSORT
+tracking. It measures 60 s with no display, each stream as fast as it can, then writes one pass of the clip as an
+N-tile mosaic with NVENC. The first run exports the ONNX on the CPU and builds the engine for N (about 30 s).
+
+| streams | FPS per stream | in total | GPU | NVDEC |
+|---|---|---|---|---|
+| 8 | 74.1 | 593 | 93% | 36% |
+| 16 | 33.4 | 535 | 96% | 34% |
+
+At 16 streams the GPU is full and NVDEC is a third busy: on the Spark, compute is the limit, not video decoding.
+YOLO26 and Ultralytics are AGPL-3.0.
+
+```bash
+./run-recipe.sh vision/yolo26-tensorrt --setup
+./run-recipe.sh vision/yolo26-deepstream --setup
+./run-recipe.sh vision/yolo26-deepstream -- --streams 8
+```
 
 ### 2026-10-29
 

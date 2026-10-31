@@ -1,0 +1,10 @@
+# YOLO26s (Ultralytics) on TensorRT FP16: detect and track one video with ByteTrack. One DGX Spark.
+# Measured 2026-10-31 on DeepStream's 1080p 30 FPS sample clip: 164 FPS (decode and track, batch 1).
+# The first run exports the TensorRT engine into ./out/yolo26-tensorrt (once, about 30 s).
+image: dgx-spark-recipes/ultralytics:8.4.192
+build: images/ultralytics
+model: Ultralytics/YOLO26
+revision: 070ac3c51435984d992ba92eb3f234daf4e4500d
+file: yolo26s.pt
+script: scripts/yolo26-track.py
+memory: 32g

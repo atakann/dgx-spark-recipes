@@ -1,0 +1,10 @@
+# YOLO26s on DeepStream 9.2: N videos in one pipeline (NVDEC, batched TensorRT FP16, NvSORT). One DGX Spark.
+# Measured 2026-10-31: 16 streams of the 1080p 30 FPS sample clip at 33.4 FPS each, GPU 96%, NVDEC 34%.
+# The first run exports the ONNX and builds the engine into ./out/yolo26-deepstream (once, about 30 s).
+image: dgx-spark-recipes/deepstream-yolo:9.2
+build: images/deepstream-yolo
+model: Ultralytics/YOLO26
+revision: 070ac3c51435984d992ba92eb3f234daf4e4500d
+file: yolo26s.pt
+script: scripts/yolo26-deepstream.py
+memory: 32g
