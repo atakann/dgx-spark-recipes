@@ -182,8 +182,9 @@ print(hashlib.sha256(bytes(k)).hexdigest())' | tail -1)
   fi
   # vLLM and llama.cpp take --host/--port; ComfyUI sets its own in "serve"
   SERVE=$(get serve)
+  ENVS=(); for kv in $(get env); do ENVS+=(-e "$kv"); done
   # shellcheck disable=SC2086  # args are a flat flag list from the recipe
-  docker run -d --init --name "$NAME" --gpus all --ipc host --memory "$MEMORY" \
+  docker run -d --init --name "$NAME" --gpus all --ipc host --memory "$MEMORY" ${ENVS[@]+"${ENVS[@]}"} \
     -p "$HOST:$PORT:8000" -v "$HF_HOME:/hf:ro" ${MOUNTS[@]+"${MOUNTS[@]}"} \
     ${CACHE[@]+"${CACHE[@]}"} ${URING[@]+"${URING[@]}"} ${HOMEDIR[@]+"${HOMEDIR[@]}"} \
     "$IMAGE" $ARGS ${SERVE:---host 0.0.0.0 --port 8000}

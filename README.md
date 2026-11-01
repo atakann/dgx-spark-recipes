@@ -52,7 +52,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `ornith-1.5-122b-nvfp4-vllm` | Ornith-1.5-122B, NVFP4 | vLLM nightly 77154ca | 1 | 26.5 tok/s, prefill 2,447 tok/s |
 | `nemotron-3.5-bolt-vllm` | Nemotron 3.5 Bolt 74B, 2-bit QAD | vLLM nightly 77154ca + b12x | 1 | 29 tok/s |
 | `nemotron-3.5-bolt-lilicorr-vllm` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 1 | 93-104 tok/s on code, JSON, rewrites |
-| `qwen3.8-flash-next-fp4-vllm` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 1 | 44-62 tok/s on JSON, code, rewrites |
+| `qwen3.8-flash-next-fp4-vllm` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 1 | 49-64 tok/s on JSON, code, rewrites, explanations |
 | `qwen3.8-flash-next-fp4-flare` | same model, MTP 5 | NVIDIA Flare 5f37bd1 (research prototype) | 1 | 42-66 tok/s on JSON, rewrites, code, explanations |
 | `qwen3.8-flash-next-fp4-vllm-tp2` | same model, MTP 4, TP=2 (NVIDIA's cluster command) | vLLM 8244d1c (eugr/spark-vllm-b12x) | 2 | 74-98 tok/s on JSON, code, rewrites, explanations |
 | `glm-5.3-flash-fp4-vllm-tp2` | GLM-5.3-Flash FP4-Local (NVIDIA's QAD NVFP4), MTP 5, TP=2 (the card's command) | vLLM 8244d1c (eugr/spark-vllm-b12x) | 2 | 31 tok/s, 55 for four users |
@@ -92,6 +92,16 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 ## CHANGELOG
 
 ### 2026-11-01
+
+#### Qwen3.8-Flash-Next on one Spark: a safe start
+
+`llm/qwen3.8-flash-next-fp4-vllm` loaded its weights with `--load-format b12x`, from NVIDIA's DGX Spark command.
+Measured at one-second steps, that loader took MemAvailable under 1 GiB (0.7-1.0 GiB) for about two seconds at
+the end of the load in all three starts we logged, with nothing else running on the Spark; on a first start the
+b12x kernel compile then took it down again. The recipe now uses vLLM's own loader and one b12x compile worker (`env: B12X_COMPILE_WORKERS=1`):
+lowest free memory 17.1 GiB on the first start and 18.0 GiB on later starts, at about the same speed (JSON 64,
+code 58, rewrite 60 tok/s; 68, 62 and 47 on 10-23). Starts take longer: 32 min the first time, 12 min after. `run-recipe.sh` now passes a recipe's
+`env:` to one-Spark servers too. If you ran this recipe before, pull and restart it.
 
 #### GLM-5.3-Flash FP4-Local on two Sparks with TensorFold
 

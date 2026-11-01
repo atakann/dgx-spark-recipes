@@ -1,6 +1,8 @@
 # Qwen3.8-Flash-Next-FP4-Local (NVIDIA's QAD NVFP4), NVIDIA's DGX Spark command from the model card. One DGX Spark.
-# Measured 2026-10-23: JSON 62, code 58, explain 47, rewrite 44 tok/s (one user, temperature 0.7, MTP 4).
-# First start 17 min (compiles into ./cache), later starts about 5 min.
+# Measured 2026-11-01: JSON 64, code 58, rewrite 60, explain 49 tok/s (one user, temperature 0.7, MTP 4).
+# vLLM's own loader, not NVIDIA's --load-format b12x: b12x took the Spark to under 1 GiB free at the end of
+# every load (11-01). One b12x compile worker. Lowest free memory 17.1 GiB on the first start (32 min, it
+# compiles the kernels into ./cache) and 18.0 GiB on later starts (12 min).
 type: server
 image: dgx-spark-recipes/vllm-flash-next:8244d1c
 build: images/vllm-flash-next
@@ -9,4 +11,5 @@ revision: b9ce18a6887e18c089fdea8509a33e63429a3300
 memory: 112g
 cache: true
 io_uring: true
-args: {model} --served-model-name qwen3.8-flash-next --tensor-parallel-size 1 --mamba-cache-mode align --enable-prefix-caching --enable-chunked-prefill --dtype bfloat16 --kv-cache-dtype fp8 --quantization modelopt_mixed --block-size 16 --load-format b12x --max-model-len 262144 --max-num-seqs 8 --max-num-batched-tokens 4096 --speculative-config {"method":"mtp","num_speculative_tokens":4} --gdn-decode-kernel b12x --linear-backend b12x --moe-backend b12x --no-enable-flashinfer-autotune --mm-encoder-tp-mode data --reasoning-parser qwen3 --tool-call-parser qwen3_xml --enable-auto-tool-choice --compilation-config {"pass_config":{"fuse_act_quant":true}} --gpu-memory-utilization 0.8
+env: B12X_COMPILE_WORKERS=1
+args: {model} --served-model-name qwen3.8-flash-next --tensor-parallel-size 1 --mamba-cache-mode align --enable-prefix-caching --enable-chunked-prefill --dtype bfloat16 --kv-cache-dtype fp8 --quantization modelopt_mixed --block-size 16 --load-format auto --max-model-len 262144 --max-num-seqs 8 --max-num-batched-tokens 4096 --speculative-config {"method":"mtp","num_speculative_tokens":4} --gdn-decode-kernel b12x --linear-backend b12x --moe-backend b12x --no-enable-flashinfer-autotune --mm-encoder-tp-mode data --reasoning-parser qwen3 --tool-call-parser qwen3_xml --enable-auto-tool-choice --compilation-config {"pass_config":{"fuse_act_quant":true}} --gpu-memory-utilization 0.8
