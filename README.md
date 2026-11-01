@@ -56,6 +56,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `qwen3.8-flash-next-fp4-flare` | same model, MTP 5 | NVIDIA Flare 5f37bd1 (research prototype) | 1 | 42-66 tok/s on JSON, rewrites, code, explanations |
 | `qwen3.8-flash-next-fp4-vllm-tp2` | same model, MTP 4, TP=2 (NVIDIA's cluster command) | vLLM 8244d1c (eugr/spark-vllm-b12x) | 2 | 74-98 tok/s on JSON, code, rewrites, explanations |
 | `glm-5.3-flash-fp4-vllm-tp2` | GLM-5.3-Flash FP4-Local (NVIDIA's QAD NVFP4), MTP 5, TP=2 (the card's command) | vLLM 8244d1c (eugr/spark-vllm-b12x) | 2 | 31 tok/s, 55 for four users |
+| `glm-5.3-flash-fp4-tensorfold-tp2` | same weights, TP=2 (TensorFold's GLM recipe) | TensorFold 1.1.9 release | 2 | 44-48 tok/s on JSON, code, rewrites |
 | `qwen3.8-27b-nvfp4-bf16head-vllm` | Qwen3.8-27B, NVFP4 with a BF16 lm_head ([atakans](https://huggingface.co/atakans/Qwen3.8-27B-NVFP4-BF16head)) | vLLM 0.30.0 | 1 | 11.1 tok/s |
 | `nanbeige4.3-33b-nvfp4-dflash2-vllm` | Nanbeige4.3-33B, NVFP4 (primitive-ai), with ProCreations' DFlash2 draft | vLLM nightly 77154ca + b12x | 1 | 22-24 tok/s on JSON and code, 11.3 without the draft |
 | `ling-3.0-flash-mxfp4-sglang` | Ling-3.0-flash 124B-A5B, MXFP4 (inclusionAI), MTP 3, FP8 lm_head, FlashInfer MoE | SGLang 20621aa + inclusionAI 079d404 | 1 | 51-57 tok/s on JSON, code, rewrites |
@@ -89,6 +90,29 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-01
+
+#### GLM-5.3-Flash FP4-Local on two Sparks with TensorFold
+
+`llm/glm-5.3-flash-fp4-tensorfold-tp2` serves the same `nvidia/GLM-5.3-Flash-FP4-Local` weights as the vLLM
+recipe with TensorFold 1.1.9's signed release binary, following TensorFold's own GLM recipe
+([docs/recipes/glm-5.3-flash-cuda.md](https://github.com/ashhart/TensorFold/blob/v1.1.9/docs/recipes/glm-5.3-flash-cuda.md),
+Apache-2.0). `images/tensorfold` downloads the release archive, checks its sha256 and the archive's own
+`SHA256SUMS`, and puts it on NGC PyTorch (by digest) for CUDA 13, NCCL and verbs. `run-recipe.sh` gains
+`engine: tensorfold` (both ranks get the same flags; `TF_GLM_RANK`, `TF_GLM_WORLD` and `NCCL_COMM_ID` place them)
+and a `cpuset:` key. This recipe pins each rank to GB10's efficiency cores (0-4, 10-14), as TensorFold's runbook
+advises, and reserves 17 GiB with a 147,456-token window, so 15+ GiB stays free on each Spark.
+
+Measured from a clean start with the command below, one user, reasoning effort low, temperature 0.7, median of 5:
+JSON 48.1, code 48.2, rewrite 44.4, explain 39.8, story 33.4 tok/s; the low point was 15.9 GiB free. Lab runs with
+the same settings were 5-15% faster on most prompts (cause not found); there a 128k prompt read in 91 s and turn 2
+came from TensorFold's prompt cache in about 1 s. Against the vLLM recipe on the same weights, one user is faster on
+most prompts and four users are level.
+
+```bash
+WORKER=spark2 ./run-recipe.sh llm/glm-5.3-flash-fp4-tensorfold-tp2 --setup
+```
 
 ### 2026-10-31
 

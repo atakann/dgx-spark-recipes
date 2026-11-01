@@ -1,0 +1,18 @@
+# GLM-5.3-Flash-FP4-Local on two DGX Sparks, TP=2, with TensorFold 1.1.9's release binary (Apache-2.0), run as
+# TensorFold's own docs/recipes/glm-5.3-flash-cuda.md with our changes: API on 127.0.0.1, each rank on GB10's
+# efficiency cores (TensorFold's runbook), a 17 GiB reserve.
+# Run it on the first Spark with WORKER=<ssh host of the second Spark>; --setup builds the image and copies it over.
+# README command from a clean start, 2026-10-31 (one user, reasoning effort low, T 0.7, median of 5): JSON 48.1,
+# code 48.2, rewrite 44.4, story 33.4 tok/s. Lab runs with the same settings: 128k prompt in 91 s, decode 37-44 tok/s
+# from 32k to 128k. First start 6.5 min, 15.9 GiB free at the low point: the reserve and a 147,456-token window keep 15+.
+type: server
+sparks: 2
+engine: tensorfold
+image: dgx-spark-recipes/tensorfold:1.1.9
+build: images/tensorfold
+model: nvidia/GLM-5.3-Flash-FP4-Local
+revision: 76348ddb2be2e35e39ecfc00e75dc07703f4f3d5
+memory: 112g
+cpuset: 0-4,10-14
+env: TENSORFOLD_MEMORY_RESERVE_GIB=17
+args: serve {model} --name glm-5.3-flash --context 147456 --parallel 1 --no-update-check

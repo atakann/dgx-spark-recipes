@@ -73,6 +73,7 @@ if [ "$(get cache)" = true ]; then
   CACHE=(-v "$PWD/cache/$NAME:/cache" -e FLASHINFER_WORKSPACE_BASE=/cache -e MAX_JOBS=4)
 fi
 MEMORY=$(get memory)
+CPUSET=$(get cpuset)  # "cpuset:" pins the containers, e.g. GB10's efficiency cores 0-4,10-14
 # "io_uring: true": b12x reads the weights and the PLE table through io_uring with locked
 # buffers, which Docker's default seccomp profile blocks
 URING=()
@@ -103,27 +104,35 @@ cluster() {
   for kv in $(get env); do env_args+=(-e "$kv"); done
   # shellcheck disable=SC2054  # commas belong to the values
   flags=(--init --name "$NAME" --gpus all --ipc host --network host --shm-size 16g --memory "$MEMORY"
+    ${CPUSET:+--cpuset-cpus "$CPUSET"}
     --device /dev/infiniband --cap-add IPC_LOCK --ulimit memlock=-1:-1 --ulimit nofile=1048576:1048576
     -e NCCL_IB_DISABLE=0 -e NCCL_IGNORE_CPU_AFFINITY=1 ${URING[@]+"${URING[@]}"} "${env_args[@]}")
-  local worker_flag
-  if [ "$(get engine)" = sglang ]; then  # SGLang ranks meet at --dist-init-addr and have no headless flag
-    rank_args="--nnodes 2 --dist-init-addr $head_ip:${MASTER_PORT:-29501}" worker_flag=""
+  local worker_tail head_tail head_env=() worker_env=()
+  if [ "$(get engine)" = tensorfold ]; then
+    # TensorFold ranks find their place in the environment and compare their arguments before the weights load,
+    # so both get the same flags, --host and --port included (TF_GLM_*: GLM is its CUDA family with ranks)
+    rank_args="" worker_tail="--host $HOST --port $PORT" head_tail=""
+    flags+=(-e TF_GLM_WORLD=2 -e NCCL_COMM_ID="$head_ip:${MASTER_PORT:-29583}")
+    worker_env=(-e TF_GLM_RANK=1) head_env=(-e TF_GLM_RANK=0)
+  elif [ "$(get engine)" = sglang ]; then  # SGLang ranks meet at --dist-init-addr and have no headless flag
+    rank_args="--nnodes 2 --dist-init-addr $head_ip:${MASTER_PORT:-29501}" worker_tail="--node-rank 1" head_tail="--node-rank 0"
   else
-    rank_args="--nnodes 2 --master-addr $head_ip --master-port ${MASTER_PORT:-29501}" worker_flag="--headless"
+    rank_args="--nnodes 2 --master-addr $head_ip --master-port ${MASTER_PORT:-29501}"
+    worker_tail="--node-rank 1 --headless" head_tail="--node-rank 0"
   fi
   mkdir -p "cache/$NAME"
   # shellcheck disable=SC2086  # args are a flat flag list from the recipe
-  on_worker "mkdir -p \$HOME/.cache/dgx-spark-recipes/$NAME && docker run -d $(printf '%q ' "${flags[@]}" \
+  on_worker "mkdir -p \$HOME/.cache/dgx-spark-recipes/$NAME && docker run -d $(printf '%q ' "${flags[@]}" ${worker_env[@]+"${worker_env[@]}"} \
     -e NCCL_SOCKET_IFNAME="${worker_link[0]}" -e GLOO_SOCKET_IFNAME="${worker_link[0]}" \
     -e TP_SOCKET_IFNAME="${worker_link[0]}" -e NCCL_IB_HCA="${worker_link[1]}" \
     -v "$HF_HOME:/hf:ro") -v \$HOME/.cache/dgx-spark-recipes/$NAME:/cache -e FLASHINFER_WORKSPACE_BASE=/cache -e MAX_JOBS=4 \
-    $(printf '%q ' "$IMAGE") $(printf '%q ' $ARGS) $rank_args --node-rank 1 $worker_flag" >/dev/null
+    $(printf '%q ' "$IMAGE") $(printf '%q ' $ARGS) $rank_args $worker_tail" >/dev/null
   # shellcheck disable=SC2086
-  docker run -d "${flags[@]}" \
+  docker run -d "${flags[@]}" ${head_env[@]+"${head_env[@]}"} \
     -e NCCL_SOCKET_IFNAME="${head_link[0]}" -e GLOO_SOCKET_IFNAME="${head_link[0]}" \
     -e TP_SOCKET_IFNAME="${head_link[0]}" -e NCCL_IB_HCA="${head_link[1]}" \
     -v "$HF_HOME:/hf:ro" ${CACHE[@]+"${CACHE[@]}"} \
-    "$IMAGE" $ARGS $rank_args --node-rank 0 --host "$HOST" --port "$PORT" >/dev/null
+    "$IMAGE" $ARGS $rank_args $head_tail --host "$HOST" --port "$PORT" >/dev/null
   echo "started $NAME on two Sparks (head $head_ip, worker $WORKER) on http://$HOST:$PORT"
   local r=${RECIPE#recipes/}
   echo "logs: docker logs -f $NAME  stop: $0 ${r%.yaml} --stop"
