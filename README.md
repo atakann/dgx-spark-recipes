@@ -81,6 +81,8 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | recipe | model | engine | Sparks | speed |
 |---|---|---|---|---|
 | `drama-3` | Fish Audio Drama 3, text to speech | SGLang-Omni 22d4ace | 1 | 1.1× real time, one request |
+| `nemotron-3.5-transcribe-fp8` | NVIDIA Nemotron 3.5 Transcribe 30B-A4B, FP8, speech to text with word timestamps and speakers | vLLM 0.32.0 + NeMo Speech 2ed70ab | 1 | 29× real time, WER 11.19 on Earnings-22 |
+| `nemotron-3.5-transcribe-nvfp4` | same model, NVFP4 | vLLM 0.32.0 + NeMo Speech 2ed70ab | 1 | 33× real time, WER 11.85 on Earnings-22 |
 
 ### Vision (`vision/`)
 
@@ -90,6 +92,37 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-02
+
+#### Nemotron 3.5 Transcribe on one Spark, FP8 and NVFP4
+
+`speech/nemotron-3.5-transcribe-fp8` and `speech/nemotron-3.5-transcribe-nvfp4` serve NVIDIA's quantized
+Nemotron 3.5 Transcribe (30B MoE, 4B active) on vLLM 0.32.0 with the NeMo Speech plugin, built from NeMo Speech's
+own `uv.lock` (`images/nemotron-transcribe`). The flags are the model card's, without `--trust-remote-code` (the
+repos have no code), with 8 sequences and 0.62 of the memory. NVIDIA's timestamp middleware is on, so a reply
+can carry word times and speaker tags.
+
+Measured on three Earnings-22 calls from the Open ASR long-form set (61 min of audio, one call at a time, warm),
+scored with the leaderboard's normalizer:
+
+| build | WER | 61 min of audio in | lowest free memory |
+|---|---|---|---|
+| BF16 (not a recipe) | 11.42 | 188 s, 20× real time | |
+| FP8 | 11.19 | 126 s, 29× | 32 GiB |
+| NVFP4 | 11.85 | 110 s, 33× | 36 GiB |
+
+`scripts/nemotron-transcribe.py` sends one WAV with NVIDIA's speaker-tag prompt and writes the reply as `.json`
+and `.srt`. A 65 s film scene with two speakers took 5.0 s (FP8) and 4.2 s (NVFP4). In long one-speaker
+stretches (a 20 min call) NeMo's aligner drops most word times without an error; the transcript stays complete,
+and the script says when the times cover less than 90% of the words. The first start compiles kernels into
+`./cache` (about 21 min), later starts take about 7 min, and the first request after a start about 40 s.
+
+```bash
+./run-recipe.sh speech/nemotron-3.5-transcribe-fp8 --setup
+ffmpeg -i film.mp4 -vn -ac 1 -ar 16000 film.wav
+python3 scripts/nemotron-transcribe.py film.wav
+```
 
 ### 2026-11-01
 

@@ -1,0 +1,16 @@
+# NVIDIA Nemotron 3.5 Transcribe (30B MoE, 4B active), FP8, speech to text on vLLM 0.32.0 with NeMo Speech. One DGX Spark.
+# Measured 2026-11-02 on three Earnings-22 calls (61 min of audio, one call at a time): WER 11.19 (BF16 11.42),
+# all 61 min in 126 s, 29x real time. Word timestamps and speaker tags come from NVIDIA's CTC middleware.
+# The model card's flags without --trust-remote-code (the repo has no code), with 8 sequences and 0.62 of the
+# memory instead of the RTX PRO sizes. Lowest free memory 32 GiB. First start about 21 min (it compiles
+# kernels into ./cache), later starts about 7 min; the first request after a start takes about 40 s.
+# Word timestamps can drop out in long one-speaker stretches (a 20 min call); clips of a few minutes are fine.
+type: server
+image: dgx-spark-recipes/nemotron-transcribe:nemo-2ed70ab
+build: images/nemotron-transcribe
+model: nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-FP8
+revision: 2b6209f89bec0da576d69183bfdabb3b6c05ade2
+memory: 112g
+cache: true
+env: HF_HUB_OFFLINE=1 VLLM_DISABLED_KERNELS=FlashInferFP8ScaledMMLinearKernel
+args: vllm serve {model} --served-model-name nemotron-transcribe --dtype bfloat16 --kv-cache-dtype fp8 --gpu-memory-utilization 0.62 --max-model-len 65536 --max-num-batched-tokens 4096 --max-num-seqs 8 --enable-chunked-prefill --no-enable-prefix-caching --use-replayssm --mamba-backend flashinfer --mamba-cache-mode none --mm-processor-cache-gb 0 --no-async-scheduling --limit-mm-per-prompt {"audio":{"count":1,"length":57600000}} --speculative-config {"method":"mtp","num_speculative_tokens":8} --reasoning-parser nemotron_v3 --trust-request-mm-kwargs --middleware nemo.collections.speechlm2.vllm.salm.ctc_serving.ctc_timestamp_middleware
