@@ -61,6 +61,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `nanbeige4.3-33b-nvfp4-dflash2-vllm` | Nanbeige4.3-33B, NVFP4 (primitive-ai), with ProCreations' DFlash2 draft | vLLM nightly 77154ca + b12x | 1 | 22-24 tok/s on JSON and code, 11.3 without the draft |
 | `ling-3.0-flash-mxfp4-sglang` | Ling-3.0-flash 124B-A5B, MXFP4 (inclusionAI), MTP 3, FP8 lm_head, FlashInfer MoE | SGLang 20621aa + inclusionAI 079d404 | 1 | 51-57 tok/s on JSON, code, rewrites |
 | `ling-3.0-flash-fp8-sglang-tp2` | Ling-3.0-flash, FP8 (inclusionAI), MTP 3, FP8 lm_head, TP=2 | SGLang 20621aa + inclusionAI 079d404 | 2 | 72-80 tok/s on JSON, code, rewrites, explanations |
+| `nemotron-3.5-super-vl-nvfp4-lilicorr-vllm` | Nemotron 3.5 Super VL 120B-A12B, NVFP4 (NVIDIA), vision-language, with NVIDIA's LiLiCorr draft | vLLM 0.32.0 | 1 | 62-71 tok/s on JSON, code, rewrites |
 
 ### Image (`image/`)
 
@@ -92,6 +93,27 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-03
+
+#### Nemotron 3.5 Super VL on one Spark, with NVIDIA's LiLiCorr draft
+
+`llm/nemotron-3.5-super-vl-nvfp4-lilicorr-vllm` serves NVIDIA's NVFP4 build of Nemotron 3.5 Super VL (120B total,
+12B active; Mamba-2, MoE and attention layers with a vision encoder) with the LiLiCorr DFlash draft, from the model
+card's DGX Spark command on the official vLLM 0.32.0 image. Two changes keep 10+ GiB free: 0.70 of the memory instead
+of 0.75 (the first start's MoE autotune took 0.75 down to 8.5 GiB) and a 256K window instead of 1M (1M needs 10 GiB of
+KV cache that 0.70 does not leave). `--trust-remote-code` stays, because vLLM's own config for this model lacks fields
+the repo's config code adds; the repo's 8 `.py` files at the pinned revision hold config and image processing code
+only. The first start is ready about 12 minutes after the command.
+
+Measured from a clean start, one user, thinking off, temperature 0.7, median of 5: JSON 71.2, code 64.0, rewrite
+62.3, explain 44.6, story 30.1 tok/s; the draft lands about 6-7 tokens a step on structured text and 3 on prose.
+In the lab run decode held 33 tok/s at 32K context and 29 at 128K, where the prompt read in 53 s. A document page as
+an image was read and answered in 5.5 s. Lowest free memory 20.2 GiB.
+
+```bash
+./run-recipe.sh llm/nemotron-3.5-super-vl-nvfp4-lilicorr-vllm --setup
+```
 
 ### 2026-11-02
 
