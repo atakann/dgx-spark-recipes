@@ -1,0 +1,16 @@
+# Ricursive Ripple-65B Preview (dense 65B: 64 sliding-window and 16 full-attention layers) in Ricursive's NVFP4 build,
+# with Ricursive's DFlash2 draft (7 tokens), on vLLM nightly. One DGX Spark.
+# Ripple is in-tree in vLLM since PR #65745 (merged 2026-11-05): no --trust-remote-code, the repo's .py files are not needed.
+# Measured 2026-11-08 from a clean start of this recipe, one user, temperature 0.7, 300 tokens, best of 5: JSON 17.9,
+# code 21.1, rewrite 28.9, explain 11.7, story 7.7 tok/s; ready 4.4 min after the command, lowest free memory 25.0 GiB.
+# Lab run (11-06): decode 8.2 tok/s at 32K and 7.1 at 128K; GPQA Diamond 69.2%, IFEval 90.0% (16K cap; thinking cannot
+# be turned off, the model decides per turn, and 49 of 198 GPQA answers hit the cap).
+# The repo ships no sampling defaults; temperature 0.6, top_p 0.95 is our choice (vLLM would use 1.0).
+type: server
+image: vllm/vllm-openai@sha256:48c0a41e8268faf50317ab83dc12c54fe6549b1131b38d06abe5ed15e3009700
+model: ricursiveAI/Ripple-65B-Preview-NVFP4
+revision: 99eea4477a001a41b86914e41feb4b2ed86105e5
+draft: ricursiveAI/Ripple-65B-Preview-DFlash2
+draft_revision: 35609b3be3dd08a822b3ba1257c1ea5dd6f87632
+memory: 112g
+args: {model} --served-model-name ripple --max-model-len 262144 --kv-cache-memory-bytes 24G --max-num-seqs 4 --enable-prefix-caching --reasoning-parser ripple --enable-auto-tool-choice --tool-call-parser ripple --override-generation-config {"temperature":0.6,"top_p":0.95} --speculative-config {"method":"dflash","model":"{draft}","num_speculative_tokens":7}

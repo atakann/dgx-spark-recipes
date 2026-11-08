@@ -62,6 +62,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `ling-3.0-flash-mxfp4-sglang` | Ling-3.0-flash 124B-A5B, MXFP4 (inclusionAI), MTP 3, FP8 lm_head, FlashInfer MoE | SGLang 20621aa + inclusionAI 079d404 | 1 | 51-57 tok/s on JSON, code, rewrites |
 | `ling-3.0-flash-fp8-sglang-tp2` | Ling-3.0-flash, FP8 (inclusionAI), MTP 3, FP8 lm_head, TP=2 | SGLang 20621aa + inclusionAI 079d404 | 2 | 72-80 tok/s on JSON, code, rewrites, explanations |
 | `nemotron-3.5-super-vl-nvfp4-lilicorr-vllm` | Nemotron 3.5 Super VL 120B-A12B, NVFP4 (NVIDIA), vision-language, with NVIDIA's LiLiCorr draft | vLLM 0.32.0 | 1 | 62-71 tok/s on JSON, code, rewrites |
+| `ripple-65b-preview-nvfp4-dflash2-vllm` | Ripple-65B Preview, dense, NVFP4 (Ricursive), with Ricursive's DFlash2 draft | vLLM nightly 4fab5a07 | 1 | 18-29 tok/s on JSON, code, rewrites; 7.7 on stories |
 
 ### Image (`image/`)
 
@@ -93,6 +94,28 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-08
+
+#### Ripple-65B Preview on one Spark, with Ricursive's DFlash2 draft
+
+`llm/ripple-65b-preview-nvfp4-dflash2-vllm` serves Ricursive's NVFP4 build of Ripple-65B Preview (a dense 65B model:
+64 sliding-window and 16 full-attention layers) with Ricursive's DFlash2 draft, 7 tokens, on a vLLM nightly image
+pinned by digest. Ripple is in-tree in vLLM since PR #65745, so there is no `--trust-remote-code` and the repo's `.py`
+files are not used. 256K window with a 24 GiB KV cache (64 KiB per token on the full-attention layers). The model has
+no switch for thinking: it decides per turn. The repo ships no sampling defaults; temperature 0.6 and top_p 0.95 are
+our choice.
+
+Measured from a clean start, one user, temperature 0.7, 300 tokens, best of 5: JSON 17.9, code 21.1, rewrite 28.9,
+explain 11.7, story 7.7 tok/s; the draft lands about 5-7 tokens a step on structured text and 2 on stories. It is a
+dense model, so prose without help from the draft is slow. In the lab run decode held 8.2 tok/s at 32K context and 7.1
+at 128K, where the prompt read in 204 s. GPQA Diamond 69.2% and IFEval 90.0% at temperature 0 with a 16K-token cap;
+49 of 198 GPQA answers and 14 of 200 IFEval answers hit the cap and count as wrong. Ready 4.4 minutes after the
+command; lowest free memory 25.0 GiB.
+
+```bash
+./run-recipe.sh llm/ripple-65b-preview-nvfp4-dflash2-vllm --setup
+```
 
 ### 2026-11-03
 
