@@ -63,6 +63,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `ling-3.0-flash-fp8-sglang-tp2` | Ling-3.0-flash, FP8 (inclusionAI), MTP 3, FP8 lm_head, TP=2 | SGLang 20621aa + inclusionAI 079d404 | 2 | 72-80 tok/s on JSON, code, rewrites, explanations |
 | `nemotron-3.5-super-vl-nvfp4-lilicorr-vllm` | Nemotron 3.5 Super VL 120B-A12B, NVFP4 (NVIDIA), vision-language, with NVIDIA's LiLiCorr draft | vLLM 0.32.0 | 1 | 62-71 tok/s on JSON, code, rewrites |
 | `ripple-65b-preview-nvfp4-dflash2-vllm` | Ripple-65B Preview, dense, NVFP4 (Ricursive), with Ricursive's DFlash2 draft | vLLM nightly 4fab5a07 | 1 | 18-29 tok/s on JSON, code, rewrites; 7.7 on stories |
+| `qwen3.8-27b-bf16-dspine-sglang` | Qwen3.8-27B, BF16, with Tencent's DSpine draft (16 tokens), patched for GPUs without FA3 | SGLang 0.5.22 + DSpine 0cc92d8 | 1 | 29-31 tok/s on JSON, code, rewrites; 8 on stories |
 
 ### Image (`image/`)
 
@@ -94,6 +95,29 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-09
+
+#### Qwen3.8-27B with Tencent's DSpine draft, on a GPU without FA3
+
+`llm/qwen3.8-27b-bf16-dspine-sglang` serves Qwen3.8-27B in BF16 with `tencent/Qwen3.8-27B-DSpine-b16`, a five-layer
+draft that proposes 16 tokens per block, on SGLang 0.5.22 with Tencent's DSpine plugin. The plugin requires FA3 for
+the draft attention, and the GB10 has no FA3. `images/dspine` applies `gb10.patch` (3 files): the draft attention runs
+on Triton, and the ragged verify graph that batches of 8 use is skipped when the backend cannot capture it. With
+FlashInfer as the draft attention backend the output was garbage, so the patch allows Triton only. The command is
+Tencent's Qwen3.8-27B command with Triton attention, 0.70 of the memory and no `--trust-remote-code`.
+
+Measured from a clean start, one user, temperature 0.7, 300 tokens, thinking off, best of 5: JSON 30.5, code 30.6,
+rewrite 29.0, explain 16.3, story 8.0 tok/s. In the lab, on the same setup, z-lab's DFlash2 draft (8 tokens) gave JSON
+23.4, code 23.6, rewrite 19.2, explain 18.6, story 10.3, and no draft 4.5 on every prompt. The long blocks win on
+structured text and lose on prose. Greedy answers to six prompts: DFlash2 matched no draft byte for byte on all six,
+DSpine on four; on the other two it picked a different token at a near tie ("cliff" for "rock", the other JOIN order).
+Without DSpine's ReplaySSM the server does not fit in memory, so the source of the difference is not isolated. Ready
+10.3 minutes after the command; lowest free memory 21.6 GiB.
+
+```bash
+./run-recipe.sh llm/qwen3.8-27b-bf16-dspine-sglang --setup
+```
 
 ### 2026-11-08
 
