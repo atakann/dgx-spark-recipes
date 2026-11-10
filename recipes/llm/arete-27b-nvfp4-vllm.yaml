@@ -1,0 +1,12 @@
+# NousResearch Arete-27B (Qwen3.8-27B fine-tune) in our NVFP4 build (atakans/Arete-27B-NVFP4), on vLLM nightly. One DGX Spark.
+# Made with ModelOpt 0.48.0 and NVIDIA's recipe for Qwen3.8-27B (MLP NVFP4, attention FP8); the model card has the details.
+# Lab run (11-09): 13.2 tok/s one user, 9.1 at 128K; GPQA Diamond 80.3%, IFEval 83.0% (BF16: 81.8%, 85.5%), thinking off.
+# Measured 2026-11-10 from a clean start of this recipe, one user, temperature 0.7, 300 tokens, best of 5: 13.2 tok/s on
+# every prompt type; ready 6.3 min after the command (download included), lowest free memory 65.3 GiB.
+# No MTP weights in Arete, so no draft.
+type: server
+image: vllm/vllm-openai@sha256:48c0a41e8268faf50317ab83dc12c54fe6549b1131b38d06abe5ed15e3009700
+model: atakans/Arete-27B-NVFP4
+revision: 50235efb8aaa20e7d9338ad9d64f9451da784f91
+memory: 112g
+args: {model} --served-model-name arete --max-model-len 262144 --kv-cache-memory-bytes 24G --max-num-seqs 4 --enable-prefix-caching --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder
