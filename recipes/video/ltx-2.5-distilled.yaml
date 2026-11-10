@@ -1,0 +1,11 @@
+# Lightricks LTX-2.5 (22B audio+video DiT), distilled, BF16: video with sound from text. One DGX Spark.
+# The repo is gated: accept the terms on huggingface.co/Lightricks/LTX-2.5 and `hf auth login` before --setup.
+# Measured 2026-11-10: 10 s of 1344x768 video (241 frames) in 5.3 min from start to file, lowest free 71.8 GiB.
+# --setup downloads the five files the distilled pipeline needs (71 GB), not the whole repo.
+image: dgx-spark-recipes/ltx:4f52161
+build: images/ltx
+model: Lightricks/LTX-2.5
+revision: 49b093a39c19169a8a81721dcc541e07e945232f
+file: diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors vae/ltx-2.5-video-vae-bf16.safetensors vae/ltx-2.5-audio-vae-bf16.safetensors latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors
+script: scripts/ltx.py
+memory: 112g

@@ -141,7 +141,9 @@ cluster() {
 if [ "$SETUP" = 1 ]; then
   # a recipe with "build:" makes its image here; one without it runs a published image
   if [ -n "$BUILD" ]; then docker build -t "$IMAGE" "$BUILD"; else docker pull "$IMAGE"; fi
-  HF_HOME=$HF_HOME hf download "$MODEL" ${FILE:+"$FILE"} --revision "$REV"
+  # "file:" is one file or a space-separated list (LTX-2.5 takes five files of a repo with many more)
+  read -r -a FILES <<< "$FILE"
+  HF_HOME=$HF_HOME hf download "$MODEL" ${FILES[@]+"${FILES[@]}"} --revision "$REV"
   if [ -n "$DRAFT" ]; then
     HF_HOME=$HF_HOME hf download "$DRAFT" --revision "$DRAFT_REV"
   fi

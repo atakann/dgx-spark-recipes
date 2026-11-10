@@ -79,6 +79,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | recipe | model | engine | Sparks | time |
 |---|---|---|---|---|
 | `fasth3-qad` | FastH3-QAD-v2, NVFP4, video with sound | FastVideo d4f1445 | 1 | 8.1 min for 10 s of 1344×768 |
+| `ltx-2.5-distilled` | LTX-2.5 22B distilled, BF16, video with sound (Lightricks, gated) | LTX-2 4f52161 | 1 | 5.3 min for 10 s of 1344×768 |
 
 ### Speech (`speech/`)
 
@@ -96,6 +97,27 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-10 (2)
+
+#### LTX-2.5 distilled: 10 s of video with sound in 5.3 minutes
+
+`video/ltx-2.5-distilled` runs Lightricks' LTX-2.5 (a 22B audio and video DiT) with its distilled transformer in BF16,
+the Gemma text encoder, the video and audio VAEs and the x2 spatial upscaler, through Lightricks' own
+`ltx_pipelines.distilled` at 4f52161 (8 steps, the upscale, 3 more steps). `images/ltx` is the README's install with
+Python pinned to 3.12. The repo is gated: accept the terms on its Hugging Face page and log in with `hf auth login`
+before `--setup`, which downloads only these five files (71 GB). `file:` in a recipe now takes a space-separated list.
+
+The HF cache keeps each file as a symlink to a blob with no extension, and the pipeline resolves the paths and then
+rejects the text encoder for not ending in `.safetensors`; `scripts/ltx.py` keeps the paths as given.
+
+Measured on one Spark from this command: 10 s of 1344×768 at 24 fps (241 frames) with sound from the Tokyo prompt in
+the script, 5.3 min from start to file, lowest free memory 71.8 GiB. The same prompt took FastH3-QAD-v2 8.1 min.
+
+```bash
+./run-recipe.sh video/ltx-2.5-distilled --setup
+./run-recipe.sh video/ltx-2.5-distilled -- --prompt-file out/my-prompt.txt --seconds 5
+```
 
 ### 2026-11-10
 
