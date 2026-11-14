@@ -1,0 +1,17 @@
+# MiniMax-H3-Image with online MXFP8 for the DiT and the text encoder: faster than BF16 and 30 GiB lighter, so the
+# prompt expansion model (llm/minimax-h3-image-pe-sglang) fits next to it on one DGX Spark. Same files as
+# image/minimax-h3-image-sglang; SGLang quantizes at load. The same seed gives the same scene with other details.
+# Measured 2026-11-14 from this command, with the prompt model next to it: server ready 7.7 min after the start, a
+# 4992x3328 image in 66-67 s (the first one 109 s, kernels compile), lowest free memory 34.0 GiB with both loaded.
+# License: MiniMax-H3-Image Community License. It does not cover the EU, the UK, South Korea and the US.
+type: server
+image: lmsysorg/sglang@sha256:7d2f322fbe8eda16ee65f969f8c9c2be602ecb0a29bf3c8b219945432f3992b2
+model: MiniMaxAI/MiniMax-H3-Image
+revision: 5f90473023975e6271b0ed1dd84c4e88e4bbc6d3
+include: transformer/* vae/* tokenizer/* processor/* scheduler/* model_index.json modular_model_index.json pdd_config.json pdd_fused_heads.safetensors
+extra: MiniMaxAI/MiniMax-H3
+extra_revision: 42ed227ee7df40d41602854ae760620d6eb651fe
+extra_include: text_encoder/*
+memory: 104g
+env: HF_HUB_OFFLINE=1
+args: sglang serve --model-path {model} --text-encoder-path {extra}/text_encoder --warmup-mode off --quantization mxfp8 --component-quantizations.text_encoder mxfp8

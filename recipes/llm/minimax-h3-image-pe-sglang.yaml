@@ -1,0 +1,16 @@
+# MiniMax-H3-Image-PE: the prompt expansion model of MiniMax-H3-Image (a Qwen3.8-27B fine-tune, MiniMax's own FP4,
+# 17 GB). It turns a short request into a long image prompt and an aspect ratio, as JSON. Flags from MiniMax's card,
+# plus a small state cache: SGLang's default (101 requests) takes 14 GB that two requests do not need.
+# Made to run next to image/minimax-h3-image-mxfp8-sglang: start that one first, then this one with PORT=8001.
+# scripts/h3-image-pe.py sends a request through both. --setup leaves out the repo's Python script.
+# Measured 2026-11-14 from this command, next to the image model: ready 4.9 min after the start, a prompt of
+# 200-300 words in 44-47 s (613-649 tokens with the thinking), lowest free memory 34.0 GiB with both loaded.
+# License: MiniMax-H3-Image Community License. It does not cover the EU, the UK, South Korea and the US.
+type: server
+image: lmsysorg/sglang@sha256:7d2f322fbe8eda16ee65f969f8c9c2be602ecb0a29bf3c8b219945432f3992b2
+model: MiniMaxAI/MiniMax-H3-Image-PE
+revision: 35603d4b63949afa12cb098227fffefedf081afa
+include: *.safetensors *.json *.jinja prompt/*
+memory: 32g
+env: HF_HUB_OFFLINE=1
+args: sglang serve --model-path {model} --served-model-name MiniMax-H3-Image-PE --model-type llm --reasoning-parser qwen3 --grammar-backend xgrammar --constrained-json-disable-any-whitespace --context-length 16384 --max-total-tokens 32768 --max-running-requests 2 --max-mamba-cache-size 8 --enable-metrics
