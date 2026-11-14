@@ -73,6 +73,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `qwen-image-2.1-turbo` | Qwen-Image 2.1 Turbo, BF16, 8 steps | diffusers 0.41.0 | 1 | 55.5 s per 2048² image |
 | `qwen-image-2.1-base` | Qwen-Image 2.1, BF16, 40 steps | diffusers 0.41.0 | 1 | 257 s per 2048² image |
 | `flux-3-klein` | FLUX 3 Klein, BF16 and NVFP4 | ComfyUI v0.41.0 | 1 | 7.2 s per 1 MP image (NVFP4) |
+| `minimax-h3-image-sglang` | MiniMax-H3-Image, BF16, 6 steps (server) | SGLang nightly 7e31007a | 1 | 81 s per 4096² image, 16 s per 2048² |
 
 ### Video (`video/`)
 
@@ -97,6 +98,35 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-14
+
+#### MiniMax-H3-Image: a 4096×4096 image in 81 s
+
+`image/minimax-h3-image-sglang` serves MiniMax-H3-Image (a 33.1B DiT, distilled to 6 steps, text to image and image
+editing) on SGLang's nightly image of 2026-11-13, pinned by digest and used as it ships. Everything stays on the GPU
+in BF16; SGLang precomputes the AdaLN projections on the GB10 and asks for 106 GiB of available memory at the start,
+so run it with nothing else loaded. The text encoder is the one of MiniMax-H3: `--setup` downloads 69 GB of the
+204 GB image repo and the 67 GB `text_encoder/` folder of `MiniMaxAI/MiniMax-H3`. For this a recipe can now give
+`include:` glob patterns, and `extra:` with `extra_revision:` and `extra_include:` for a second repo (`{extra}` in
+`args`).
+
+The model's license (MiniMax-H3-Image Community License) does not cover the EU, the UK, South Korea and the US.
+
+Measured on one Spark from this command: the server is ready 8.3 min after the start; a 4096×4096 image takes
+81-82 s and a 2048×2048 one 15.9 s (warm requests, with the PNG). The first request compiles kernels and takes 70 s
+at 2K. Lowest free memory 22.8 GiB. SGLang's own cookbook gives 16.2 s at 2K and 85 s at 4736×3552 for the Spark.
+
+```bash
+./run-recipe.sh image/minimax-h3-image-sglang --setup
+curl -s http://127.0.0.1:8000/v1/images/generations -H 'Content-Type: application/json' \
+  -d '{"prompt": "a red fox in fresh snow, documentary photo", "size": "4096x4096", "seed": 7, "response_format": "b64_json"}' \
+  | jq -r '.data[0].b64_json' | base64 -d > fox.png
+./run-recipe.sh image/minimax-h3-image-sglang --stop
+```
+
+Not in the recipe: `--quantization mxfp8 --component-quantizations.text_encoder mxfp8` (online MXFP8) gave 65-69 s at
+4096×4096 and 11.8 s at 2K in the lab, with 49.8 GiB free; the same seed then gives the same scene with other details.
 
 ### 2026-11-10 (2)
 

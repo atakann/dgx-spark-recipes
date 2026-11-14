@@ -1,0 +1,19 @@
+# MiniMax-H3-Image (33.1B DiT, 6 steps): 4096x4096 images from text, and image editing. One DGX Spark, SGLang.
+# License: MiniMax-H3-Image Community License. It does not cover the EU, the UK, South Korea and the US.
+# SGLang nightly of 2026-11-13 by digest, as it ships. Everything stays on the GPU (BF16), so start it with
+# nothing else loaded: SGLang wants 106 GiB available. The text encoder comes from MiniMaxAI/MiniMax-H3.
+# --setup downloads 69 GB of the 204 GB repo and the 67 GB text encoder.
+# Measured 2026-11-14 from this command: server ready 8.3 min after the start, a 4096x4096 image in 81-82 s and a
+# 2048x2048 one in 15.9 s (warm requests, with the PNG); the first request compiles kernels (70 s at 2K).
+# Lowest free memory 22.8 GiB, server-reported peak 92.3 GB.
+type: server
+image: lmsysorg/sglang@sha256:7d2f322fbe8eda16ee65f969f8c9c2be602ecb0a29bf3c8b219945432f3992b2
+model: MiniMaxAI/MiniMax-H3-Image
+revision: 5f90473023975e6271b0ed1dd84c4e88e4bbc6d3
+include: transformer/* vae/* tokenizer/* processor/* scheduler/* model_index.json modular_model_index.json pdd_config.json pdd_fused_heads.safetensors
+extra: MiniMaxAI/MiniMax-H3
+extra_revision: 42ed227ee7df40d41602854ae760620d6eb651fe
+extra_include: text_encoder/*
+memory: 104g
+env: HF_HUB_OFFLINE=1
+args: sglang serve --model-path {model} --text-encoder-path {extra}/text_encoder --warmup-mode off

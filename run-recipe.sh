@@ -41,6 +41,8 @@ TYPE=$(get type)
 FILE=$(get file)
 DRAFT=$(get draft)
 DRAFT_REV=$(get draft_revision)
+EXTRA=$(get extra)  # a second repo the model needs (MiniMax-H3-Image: the MiniMax-H3 text encoder)
+EXTRA_REV=$(get extra_revision)
 PREPARE=$(get prepare)
 HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}
 OUT=${OUT:-$PWD/out}
@@ -143,7 +145,16 @@ if [ "$SETUP" = 1 ]; then
   if [ -n "$BUILD" ]; then docker build -t "$IMAGE" "$BUILD"; else docker pull "$IMAGE"; fi
   # "file:" is one file or a space-separated list (LTX-2.5 takes five files of a repo with many more)
   read -r -a FILES <<< "$FILE"
-  HF_HOME=$HF_HOME hf download "$MODEL" ${FILES[@]+"${FILES[@]}"} --revision "$REV"
+  # "include:" takes glob patterns instead (MiniMax-H3-Image: 69 GB of a 204 GB repo); "extra:" is a second
+  # repo with its own "extra_include:" patterns. set -f keeps the shell from expanding the patterns here.
+  set -f
+  INC=(); for p in $(get include); do INC+=(--include "$p"); done
+  HF_HOME=$HF_HOME hf download "$MODEL" ${FILES[@]+"${FILES[@]}"} ${INC[@]+"${INC[@]}"} --revision "$REV"
+  if [ -n "$EXTRA" ]; then
+    XINC=(); for p in $(get extra_include); do XINC+=(--include "$p"); done
+    HF_HOME=$HF_HOME hf download "$EXTRA" ${XINC[@]+"${XINC[@]}"} --revision "$EXTRA_REV"
+  fi
+  set +f
   if [ -n "$DRAFT" ]; then
     HF_HOME=$HF_HOME hf download "$DRAFT" --revision "$DRAFT_REV"
   fi
@@ -170,6 +181,7 @@ if [ "$TYPE" = server ]; then
   ARGS=$(get args)
   ARGS=${ARGS//\{model\}/$(snap "$MODEL" "$REV")${FILE:+/$FILE}}
   ARGS=${ARGS//\{draft\}/$(snap "$DRAFT" "$DRAFT_REV")}
+  ARGS=${ARGS//\{extra\}/$(snap "$EXTRA" "$EXTRA_REV")}
   # Flare starts unattended only with its package's signing key approved: {dev_key} is the
   # fingerprint of the local development key the export made, the sha256 of its public key
   if [[ $ARGS == *"{dev_key}"* ]]; then
