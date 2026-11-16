@@ -197,11 +197,15 @@ print(hashlib.sha256(bytes(k)).hexdigest())' | tail -1)
   # vLLM and llama.cpp take --host/--port; ComfyUI sets its own in "serve"
   SERVE=$(get serve)
   ENVS=(); for kv in $(get env); do ENVS+=(-e "$kv"); done
+  # "network: host": the engine listens on the host's own address (Edge0's launcher takes a non-loopback
+  # address only with an API key file, so a published port cannot reach it)
+  NET=(-p "$HOST:$PORT:8000") LISTEN="--host 0.0.0.0 --port 8000"
+  [ "$(get network)" = host ] && NET=(--network host) LISTEN="--host $HOST --port $PORT"
   # shellcheck disable=SC2086  # args are a flat flag list from the recipe
   docker run -d --init --name "$NAME" --gpus all --ipc host --memory "$MEMORY" ${ENVS[@]+"${ENVS[@]}"} \
-    -p "$HOST:$PORT:8000" -v "$HF_HOME:/hf:ro" ${MOUNTS[@]+"${MOUNTS[@]}"} \
+    "${NET[@]}" -v "$HF_HOME:/hf:ro" ${MOUNTS[@]+"${MOUNTS[@]}"} \
     ${CACHE[@]+"${CACHE[@]}"} ${URING[@]+"${URING[@]}"} ${HOMEDIR[@]+"${HOMEDIR[@]}"} \
-    "$IMAGE" $ARGS ${SERVE:---host 0.0.0.0 --port 8000}
+    "$IMAGE" $ARGS ${SERVE:-$LISTEN}
   echo "started $NAME on http://$HOST:$PORT  logs: docker logs -f $NAME  stop: docker rm -f $NAME"
   exit 0
 fi

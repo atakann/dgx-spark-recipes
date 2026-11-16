@@ -66,6 +66,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `qwen3.8-27b-bf16-dspine-sglang` | Qwen3.8-27B, BF16, with Tencent's DSpine draft (16 tokens), patched for GPUs without FA3 | SGLang 0.5.22 + DSpine 0cc92d8 | 1 | 29-31 tok/s on JSON, code, rewrites; 8 on stories |
 | `arete-27b-nvfp4-vllm` | Arete-27B (Nous Research's Qwen3.8-27B fine-tune), NVFP4 ([atakans](https://huggingface.co/atakans/Arete-27B-NVFP4)) | vLLM nightly 4fab5a07 | 1 | 13.2 tok/s, 9.1 at 128K |
 | `minimax-h3-image-pe-sglang` | MiniMax-H3-Image-PE (prompt expansion for MiniMax-H3-Image, a Qwen3.8-27B fine-tune), MiniMax's FP4 | SGLang nightly 7e31007a | 1 | a 200-300 word prompt in 44-47 s |
+| `edge0-145b-nvfp4-strata` | Edge0-145B, NVFP4 (Edge0), a latent sparse MoE rebuilt from Qwen3.8-Flash-Next, MTP 4 | Edge0 257ff84 (edge0-strata), built for sm_121 | 1 | 36-39 tok/s on JSON, code, rewrites; 24 on stories |
 
 ### Image (`image/`)
 
@@ -100,6 +101,41 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-16
+
+#### Edge0-145B-NVFP4 on one Spark, on Edge0's own engine
+
+`llm/edge0-145b-nvfp4-strata` serves Edge0-145B-NVFP4 (a latent sparse MoE rebuilt from Qwen3.8-Flash-Next: 48 layers,
+512 experts, 48 GiB of experts in NVFP4) on Edge0's engine at 257ff84, built from source for the GB10 (sm_121): the
+engine `edge0-strata` with CUDA and the launcher `edge0-infer`. The launcher starts the engine with its own template
+for this model (MTP draft of 4 tokens, 131,072-token window, int8 KV). The recipe adds one option: `--mmap-experts`.
+
+Why: with the template alone the engine copies the experts into RAM (45.8 GiB) and holds them again in its GPU
+expert cache. On a PC these are two memories; on the Spark they are one, and 11.3 GiB stayed free on a 128 GB Spark
+after one short prompt. Strata's DGX Spark notes (`docs/DGX_SPARK_LINUX.md`) name `--mmap-experts` for this: the
+experts are read in place from the model files. With it 56 to 58 GiB stay free, and decode speed is the same.
+
+Measured from a clean start, one user, thinking off, temperature 0.7, 300 tokens, best of 5: JSON 36.9, code 35.9,
+rewrite 38.6, explain 32.3, story 24.4 tok/s. Ready 2.5 minutes after the command (image built, model on disk);
+lowest free memory 56.2 GiB. In the lab run a 128K prompt read in 119 s (about 1,080 tok/s at 32K, 64K and 128K),
+decode held 27 tok/s at every depth, the second turn started in 0.8 to 4.5 s, and the lowest free memory was
+51.8 GiB. GPQA Diamond 82.3% and IFEval 81.0% with thinking off at temperature 0 and a 16K-token cap, no answer cut.
+
+Notes:
+- Model name `edge0_145b`. Thinking is on by default; `"chat_template_kwargs": {"enable_thinking": false}` turns it off.
+- The engine serves one request at a time; more requests wait in a queue.
+- The launcher listens on a non-loopback address only with an API key file, so this recipe uses the host network and
+  serves on 127.0.0.1 (`PORT` to change). The launcher refuses `HOST=0.0.0.0`.
+- `--setup` downloads 106 GB. The image also holds the engine's regression test for the prefill hang on the DGX Spark
+  (Edge0 PR #199, fixed in this commit); it needs no model:
+  `docker run --rm --gpus all dgx-spark-recipes/edge0:257ff84 /opt/edge0/edge0-strata/build/lat_dense_d_tail_test`
+- License: Edge0 Community Model License 1.0. A commercial model offering needs a license from Edge0; read it first.
+
+```bash
+./run-recipe.sh llm/edge0-145b-nvfp4-strata --setup
+./run-recipe.sh llm/edge0-145b-nvfp4-strata --stop
+```
 
 ### 2026-11-14
 

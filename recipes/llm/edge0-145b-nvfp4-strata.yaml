@@ -1,0 +1,18 @@
+# Edge0-145B-NVFP4 (Edge0's latent sparse MoE rebuilt from Qwen3.8-Flash-Next: 48 layers, 512 experts) on
+# Edge0's own engine, built from source for the GB10 (sm_121). One DGX Spark.
+# The launcher (edge0-infer serve) starts edge0-strata with the engine's template for this model, plus one option:
+# --mmap-experts. The template alone keeps the experts in memory twice on unified memory (11.3 GiB free on a
+# 128 GB Spark). Strata's DGX Spark notes name --mmap-experts for this; with it 57 GiB stay free.
+# Measured 2026-11-16: JSON 36.9, code 35.9, rewrite 38.6, explain 32.3, story 24.4 tok/s (one user, thinking off);
+# ready 2.5 min after the command, lowest free 56.2 GiB; 128K prompt in 119 s; GPQA Diamond 82.3%, IFEval 81.0%.
+# The launcher listens on loopback only without an API key file, so the container uses the host network.
+# Model license: Edge0 Community Model License 1.0 (a commercial model offering needs a license from Edge0).
+type: server
+image: dgx-spark-recipes/edge0:257ff84
+build: images/edge0
+model: Edge0/Edge0-145B-NVFP4
+revision: cf4c3d958db1edd15bd9bcfe3507327dd7b1008c
+memory: 112g
+network: host
+env: STRATA_UMA_RESERVE_GIB=20
+args: /opt/edge0/edge0-infer/build/cpu/bin/edge0-infer serve --model {model} --strata-arg --mmap-experts
