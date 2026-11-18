@@ -1,0 +1,20 @@
+# Hy4-flash (Tencent, 220B total with 64B of Engram tables, 12B active) on two DGX Sparks: my NVFP4 build
+# (experts NVFP4 with NVIDIA ModelOpt, Engram tables FP8, 165 GB) on vLLM, TP=2 with expert parallel over the QSFP
+# link, with the model's DFly drafter (5 tokens). Run it on the first Spark with WORKER=<ssh host of the second
+# Spark>; --setup builds the image, copies it and downloads the model on both.
+# The image is vLLM's official hy4-flash image plus six Python files (images/vllm-hy4-flash): that code takes FP8
+# only and needs Hopper or data-center Blackwell; the files add Hy4's attention sink on FlashInfer's SM120 kernel
+# and ModelOpt NVFP4 expert loading. --enable-expert-parallel is needed: without it each Spark holds all experts.
+# Measured 2026-11-18, one user, thinking off: JSON 38, code 37, rewrite 36, explain 25, story 17 tok/s;
+# prefill 1,110 tok/s at 4K, 1,461 at 32K; 15 tok/s without the drafter. Clean start: setup 2.5 min with the model in the cache, ready 9.7 min later (kernel autotune),
+# lowest free memory 12.8 GiB with the 6G KV cache (578k tokens).
+# Thinking is on by default; turn it off with chat_template_kwargs {"reasoning_effort":"no_think"}.
+type: server
+sparks: 2
+image: dgx-spark-recipes/vllm-hy4-flash:77766db
+build: images/vllm-hy4-flash
+model: atakans/Hy4-flash-NVFP4
+revision: 30f201acf0b4f9ba178817bcbc04ccfa3ec473f9
+memory: 112g
+cache: true
+args: {model} --served-model-name hy4-flash --tensor-parallel-size 2 --enable-expert-parallel --dtype bfloat16 --max-model-len 262144 --max-num-seqs 4 --max-num-batched-tokens 8192 --kv-cache-memory-bytes 6G --gpu-memory-utilization 0.85 --speculative-config {"num_speculative_tokens":5,"method":"dfly"} --limit-mm-per-prompt {"image":1,"video":0} --reasoning-parser hy_v4 --tool-call-parser hy_v4 --enable-auto-tool-choice

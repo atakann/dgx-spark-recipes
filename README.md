@@ -67,6 +67,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `arete-27b-nvfp4-vllm` | Arete-27B (Nous Research's Qwen3.8-27B fine-tune), NVFP4 ([atakans](https://huggingface.co/atakans/Arete-27B-NVFP4)) | vLLM nightly 4fab5a07 | 1 | 13.2 tok/s, 9.1 at 128K |
 | `minimax-h3-image-pe-sglang` | MiniMax-H3-Image-PE (prompt expansion for MiniMax-H3-Image, a Qwen3.8-27B fine-tune), MiniMax's FP4 | SGLang nightly 7e31007a | 1 | a 200-300 word prompt in 44-47 s |
 | `edge0-145b-nvfp4-strata` | Edge0-145B, NVFP4 (Edge0), a latent sparse MoE rebuilt from Qwen3.8-Flash-Next, MTP 4 | Edge0 257ff84 (edge0-strata), built for sm_121 | 1 | 36-39 tok/s on JSON, code, rewrites; 24 on stories |
+| `hy4-flash-nvfp4-vllm-tp2` | Hy4-flash 220B-A12B (Tencent), NVFP4 experts and FP8 Engram tables ([atakans](https://huggingface.co/atakans/Hy4-flash-NVFP4)), DFly 5, TP=2 with expert parallel | vLLM 77766db (hy4-flash image) + six files | 2 | 36-38 tok/s on JSON, code, rewrites; 17 on stories |
 
 ### Image (`image/`)
 
@@ -455,6 +456,12 @@ runs at 11.3. On random-word prompts the draft gives nothing (11.0). 30 GiB stay
 #### GLM-5.3-Flash FP4-Local on two Sparks
 
 `llm/glm-5.3-flash-fp4-vllm-tp2` runs `nvidia/GLM-5.3-Flash-FP4-Local` with TP=2 and MTP 5, the command from NVIDIA's model card, on its own image `images/vllm-glm-flash` (the same eugr/spark-vllm-b12x digest with GLM's environment). It sets `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` on both Sparks: without it free memory fell to 4 GiB right after the weights loaded, with it the low point was 12 GiB and 20 GiB stays free while serving. Other changes from the card: `--gpu-memory-utilization 0.80` with a 3G KV cache (302k tokens), 256k context, text only. Measured from a clean copy, thinking off: 33.4 tok/s for one user, 41.3 for two, 59.9 for four (the server limit); an 8k prompt reads in 3.6 s.
+
+#### Hy4-flash NVFP4 on two Sparks
+
+`llm/hy4-flash-nvfp4-vllm-tp2` runs Tencent's Hy4-flash (220B total with 64B of Engram tables, 12B active) from my NVFP4 build, [atakans/Hy4-flash-NVFP4](https://huggingface.co/atakans/Hy4-flash-NVFP4): experts NVFP4 with NVIDIA ModelOpt, Engram tables FP8, 165 GB. No released vLLM runs Hy4-flash; the image `images/vllm-hy4-flash` is vLLM's official `hy4-flash` image by digest plus six Python files. That code takes FP8 checkpoints only and stops on GPUs that are not Hopper or data-center Blackwell. The files send Hy4's per-head learnable attention sink through FlashInfer's SM120 sparse MLA kernel (the kernel takes a sink; vLLM's SM120 backend did not pass one), for the sparse layers, the sliding-window layers and the DFly drafter, and load ModelOpt NVFP4 experts. `--enable-expert-parallel` is needed: without it each Spark holds all experts and the model does not fit.
+
+Measured on two Sparks, one user, thinking off (`chat_template_kwargs {"reasoning_effort":"no_think"}`), DFly 5: JSON 38.3, code 36.5, rewrite 36.1, explain 25.0, story 17.3 tok/s; about 15 tok/s without the drafter. Prefill 1,110 tok/s at 4K, 1,403 at 16K, 1,461 at 32K. The weights load in 104 s; the first start takes about 9 minutes because FlashInfer tunes its kernels. With the 6G KV cache (578k tokens, 262,144 a request) the lowest free memory was 12.8 GiB. From a clean copy: `--setup` takes 2.5 minutes with the model already in the cache and the server is ready 9.7 minutes later.
 
 #### Two-Spark recipes: Qwen3.8-Flash-Next FP4-Local with TP=2
 
