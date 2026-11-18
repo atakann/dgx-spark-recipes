@@ -103,6 +103,29 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 
 ## CHANGELOG
 
+### 2026-11-18
+
+#### Hy4-flash NVFP4 on two Sparks
+
+`llm/hy4-flash-nvfp4-vllm-tp2` runs Tencent's Hy4-flash (220B total with 64B of Engram tables, 12B active) from my
+NVFP4 build, [atakans/Hy4-flash-NVFP4](https://huggingface.co/atakans/Hy4-flash-NVFP4): experts NVFP4 with NVIDIA
+ModelOpt, Engram tables FP8, 165 GB. No released vLLM runs Hy4-flash; the image `images/vllm-hy4-flash` is vLLM's
+official `hy4-flash` image by digest plus six Python files. That code takes FP8 checkpoints only and stops on GPUs
+that are not Hopper or data-center Blackwell. The files send Hy4's per-head learnable attention sink through
+FlashInfer's SM120 sparse MLA kernel (the kernel takes a sink; vLLM's SM120 backend did not pass one), for the sparse
+layers, the sliding-window layers and the DFly drafter, and load ModelOpt NVFP4 experts. `--enable-expert-parallel` is
+needed: without it each Spark holds all experts and the model does not fit.
+
+Measured on two Sparks, one user, thinking off (`chat_template_kwargs {"reasoning_effort":"no_think"}`), DFly 5: JSON
+38.3, code 36.5, rewrite 36.1, explain 25.0, story 17.3 tok/s; about 15 tok/s without the drafter. Prefill 1,110 tok/s
+at 4K, 1,403 at 16K, 1,461 at 32K. The weights load in 104 s; the first start takes about 9 minutes because FlashInfer
+tunes its kernels. With the 6G KV cache (578k tokens, 262,144 a request) the lowest free memory was 12.8 GiB. From a
+clean copy: `--setup` takes 2.5 minutes with the model already in the cache and the server is ready 9.7 minutes later.
+
+Why six files and not a stock image: no released vLLM runs Hy4-flash, and the pull request's code checks the GPU
+before it loads anything. The kernel side was already there in FlashInfer 0.7.4; the files only connect it. The
+changes are in vllm-project/vllm#68380.
+
 ### 2026-11-16
 
 #### Edge0-145B-NVFP4 on one Spark, on Edge0's own engine
@@ -456,12 +479,6 @@ runs at 11.3. On random-word prompts the draft gives nothing (11.0). 30 GiB stay
 #### GLM-5.3-Flash FP4-Local on two Sparks
 
 `llm/glm-5.3-flash-fp4-vllm-tp2` runs `nvidia/GLM-5.3-Flash-FP4-Local` with TP=2 and MTP 5, the command from NVIDIA's model card, on its own image `images/vllm-glm-flash` (the same eugr/spark-vllm-b12x digest with GLM's environment). It sets `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` on both Sparks: without it free memory fell to 4 GiB right after the weights loaded, with it the low point was 12 GiB and 20 GiB stays free while serving. Other changes from the card: `--gpu-memory-utilization 0.80` with a 3G KV cache (302k tokens), 256k context, text only. Measured from a clean copy, thinking off: 33.4 tok/s for one user, 41.3 for two, 59.9 for four (the server limit); an 8k prompt reads in 3.6 s.
-
-#### Hy4-flash NVFP4 on two Sparks
-
-`llm/hy4-flash-nvfp4-vllm-tp2` runs Tencent's Hy4-flash (220B total with 64B of Engram tables, 12B active) from my NVFP4 build, [atakans/Hy4-flash-NVFP4](https://huggingface.co/atakans/Hy4-flash-NVFP4): experts NVFP4 with NVIDIA ModelOpt, Engram tables FP8, 165 GB. No released vLLM runs Hy4-flash; the image `images/vllm-hy4-flash` is vLLM's official `hy4-flash` image by digest plus six Python files. That code takes FP8 checkpoints only and stops on GPUs that are not Hopper or data-center Blackwell. The files send Hy4's per-head learnable attention sink through FlashInfer's SM120 sparse MLA kernel (the kernel takes a sink; vLLM's SM120 backend did not pass one), for the sparse layers, the sliding-window layers and the DFly drafter, and load ModelOpt NVFP4 experts. `--enable-expert-parallel` is needed: without it each Spark holds all experts and the model does not fit.
-
-Measured on two Sparks, one user, thinking off (`chat_template_kwargs {"reasoning_effort":"no_think"}`), DFly 5: JSON 38.3, code 36.5, rewrite 36.1, explain 25.0, story 17.3 tok/s; about 15 tok/s without the drafter. Prefill 1,110 tok/s at 4K, 1,403 at 16K, 1,461 at 32K. The weights load in 104 s; the first start takes about 9 minutes because FlashInfer tunes its kernels. With the 6G KV cache (578k tokens, 262,144 a request) the lowest free memory was 12.8 GiB. From a clean copy: `--setup` takes 2.5 minutes with the model already in the cache and the server is ready 9.7 minutes later.
 
 #### Two-Spark recipes: Qwen3.8-Flash-Next FP4-Local with TP=2
 
