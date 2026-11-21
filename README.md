@@ -61,6 +61,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `nanbeige4.3-33b-nvfp4-dflash2-vllm` | Nanbeige4.3-33B, NVFP4 (primitive-ai), with ProCreations' DFlash2 draft | vLLM nightly 77154ca + b12x | 1 | 22-24 tok/s on JSON and code, 11.3 without the draft |
 | `ling-3.0-flash-mxfp4-sglang` | Ling-3.0-flash 124B-A5B, MXFP4 (inclusionAI), MTP 3, FP8 lm_head, FlashInfer MoE | SGLang 20621aa + inclusionAI 079d404 | 1 | 51-57 tok/s on JSON, code, rewrites |
 | `inkling-2-mini-nvfp4-sglang` | Inkling 2 Mini 26B-A3.4B (looped), official NVFP4/MXFP8, DSpark | SGLang inkling-2-mini image (efac853) | 1 | 43-67 tok/s on JSON, code, rewrites, explanations |
+| `inkling-2-mini-nvfp4-vllm` | same model and weights, DSpark (7 draft tokens) | vLLM inkling-2-mini image (c2dc759, PR #69028) | 1 | 40-66 tok/s on JSON, code, rewrites, explanations |
 | `ling-3.0-flash-fp8-sglang-tp2` | Ling-3.0-flash, FP8 (inclusionAI), MTP 3, FP8 lm_head, TP=2 | SGLang 20621aa + inclusionAI 079d404 | 2 | 72-80 tok/s on JSON, code, rewrites, explanations |
 | `nemotron-3.5-super-vl-nvfp4-lilicorr-vllm` | Nemotron 3.5 Super VL 120B-A12B, NVFP4 (NVIDIA), vision-language, with NVIDIA's LiLiCorr draft | vLLM 0.32.0 | 1 | 62-71 tok/s on JSON, code, rewrites |
 | `ripple-65b-preview-nvfp4-dflash2-vllm` | Ripple-65B Preview, dense, NVFP4 (Ricursive), with Ricursive's DFlash2 draft | vLLM nightly 4fab5a07 | 1 | 18-29 tok/s on JSON, code, rewrites; 7.7 on stories |
@@ -106,7 +107,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 
 ### 2026-11-21
 
-#### Inkling 2 Mini on one Spark
+#### Inkling 2 Mini on one Spark, on SGLang and on vLLM
 
 `llm/inkling-2-mini-nvfp4-sglang` runs Thinking Machines' [Inkling 2 Mini](https://huggingface.co/thinkingmachines/Inkling-2-Mini)
 (26.4B total, 3.4B active; layers 6 to 17 run three times for every token) from the official checkpoint: 20 GB, the
@@ -122,6 +123,16 @@ reasoning effort low: 9 of 9 takes passed, median under 5 minutes.
 
 ```bash
 ./run-recipe.sh llm/inkling-2-mini-nvfp4-sglang --setup
+```
+
+`llm/inkling-2-mini-nvfp4-vllm` is the same model on vLLM's `inkling-2-mini` image (built from vLLM PR #69028, not in a
+release yet), with the dgx_spark_gb10 command of vLLM's recipe and one change: `--gpu-memory-utilization 0.5`, since the
+default 0.9 would take 109 GiB of the Spark's unified memory. First start ready in 8.9 min with the image pull, 55 GiB
+free. JSON 43.2 tok/s, code 53.9, rewrite 66.4, explain 40.5, story 33.5, with 1.9 to 3.9 tokens accepted per step;
+the two engines are within a few percent of each other on every prompt.
+
+```bash
+./run-recipe.sh llm/inkling-2-mini-nvfp4-vllm --setup
 ```
 
 ### 2026-11-18

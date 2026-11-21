@@ -1,0 +1,14 @@
+# Inkling 2 Mini (Thinking Machines, 26.4B MoE with 3.4B active, middle 12 layers looped three times) on one DGX Spark:
+# the official NVFP4/MXFP8 weights on vLLM's inkling-2-mini image (built from vLLM PR #69028, pinned by digest), with
+# DSpark speculative decoding (7 draft tokens, the draft head ships in the checkpoint). This is the dgx_spark_gb10
+# command of vLLM's Inkling-2-Mini recipe (reasoning, tool calls, DSpark) with a served name and
+# --gpu-memory-utilization 0.5: vLLM's default 0.9 would take 109 GiB of the Spark's unified memory.
+# Measured 2026-11-21, one user, thinking off: JSON 43.2 tok/s, code 53.9, rewrite 66.4, explain 40.5, story 33.5;
+# 1.9 to 3.9 tokens accepted per step. Tool calls work. First start ready in 8.9 min with the image pull, 55 GiB free.
+type: server
+image: vllm/vllm-openai@sha256:c2dc759f5984f69c1e2418c6af7c26eb756f5ed2a8934c768ae1253645d1449e
+model: thinkingmachines/Inkling-2-Mini
+revision: 6e7c8248f75265bdd4fbab5273304243b5d8c2cb
+memory: 80g
+cache: true
+args: {model} --served-model-name inkling-2-mini --tensor-parallel-size 1 --max-model-len 262144 --gpu-memory-utilization 0.5 --reasoning-parser inkling --enable-auto-tool-choice --tool-call-parser inkling --speculative-config {"method":"dspark","num_speculative_tokens":7,"draft_sample_method":"probabilistic"}
