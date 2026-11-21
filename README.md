@@ -60,6 +60,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `qwen3.8-27b-nvfp4-bf16head-vllm` | Qwen3.8-27B, NVFP4 with a BF16 lm_head ([atakans](https://huggingface.co/atakans/Qwen3.8-27B-NVFP4-BF16head)) | vLLM 0.30.0 | 1 | 11.1 tok/s |
 | `nanbeige4.3-33b-nvfp4-dflash2-vllm` | Nanbeige4.3-33B, NVFP4 (primitive-ai), with ProCreations' DFlash2 draft | vLLM nightly 77154ca + b12x | 1 | 22-24 tok/s on JSON and code, 11.3 without the draft |
 | `ling-3.0-flash-mxfp4-sglang` | Ling-3.0-flash 124B-A5B, MXFP4 (inclusionAI), MTP 3, FP8 lm_head, FlashInfer MoE | SGLang 20621aa + inclusionAI 079d404 | 1 | 51-57 tok/s on JSON, code, rewrites |
+| `inkling-2-mini-nvfp4-sglang` | Inkling 2 Mini 26B-A3.4B (looped), official NVFP4/MXFP8, DSpark | SGLang inkling-2-mini image (efac853) | 1 | 43-67 tok/s on JSON, code, rewrites, explanations |
 | `ling-3.0-flash-fp8-sglang-tp2` | Ling-3.0-flash, FP8 (inclusionAI), MTP 3, FP8 lm_head, TP=2 | SGLang 20621aa + inclusionAI 079d404 | 2 | 72-80 tok/s on JSON, code, rewrites, explanations |
 | `nemotron-3.5-super-vl-nvfp4-lilicorr-vllm` | Nemotron 3.5 Super VL 120B-A12B, NVFP4 (NVIDIA), vision-language, with NVIDIA's LiLiCorr draft | vLLM 0.32.0 | 1 | 62-71 tok/s on JSON, code, rewrites |
 | `ripple-65b-preview-nvfp4-dflash2-vllm` | Ripple-65B Preview, dense, NVFP4 (Ricursive), with Ricursive's DFlash2 draft | vLLM nightly 4fab5a07 | 1 | 18-29 tok/s on JSON, code, rewrites; 7.7 on stories |
@@ -102,6 +103,26 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-21
+
+#### Inkling 2 Mini on one Spark
+
+`llm/inkling-2-mini-nvfp4-sglang` runs Thinking Machines' [Inkling 2 Mini](https://huggingface.co/thinkingmachines/Inkling-2-Mini)
+(26.4B total, 3.4B active; layers 6 to 17 run three times for every token) from the official checkpoint: 20 GB, the
+experts trained and shipped in NVFP4 (the last four layers MXFP8), so there is nothing to quantize. The engine is SGLang's
+`inkling-2-mini` image (pinned by digest) with DSpark speculative decoding from the draft head in the checkpoint; the
+flags are the "dgx-spark, dspark" command of SGLang's Inkling-2-Mini cookbook, plus a served name, metrics and the
+`inkling2` tool-call parser.
+
+Clean start ready in 6.7 min, 55 GiB free while serving. One user, thinking off: JSON 43.1 tok/s, code 48.9, rewrite
+66.5, explain 43.9, story 32.3; on long code answers about 4 tokens are accepted per model step. GPQA Diamond 75.8%,
+IFEval 86.7% (thinking off, 16K cap). Two coding harnesses (Pi, opencode) built a 27-test path search app with it at
+reasoning effort low: 9 of 9 takes passed, median under 5 minutes.
+
+```bash
+./run-recipe.sh llm/inkling-2-mini-nvfp4-sglang --setup
+```
 
 ### 2026-11-18
 

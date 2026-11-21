@@ -1,0 +1,14 @@
+# Inkling 2 Mini (Thinking Machines, 26.4B MoE with 3.4B active, middle 12 layers looped three times) on one DGX Spark:
+# the official NVFP4/MXFP8 weights (20 GB, trained in 4 bit, no quantization of ours) on SGLang's inkling-2-mini image
+# with DSpark speculative decoding (the draft head ships in the checkpoint). This is the "dgx-spark, dspark" command of
+# SGLang's Inkling-2-Mini cookbook (verified there), with the served name, text only, metrics and the tool-call parser.
+# Measured 2026-11-21, one user, thinking off: JSON 43.2 tok/s, code 49.0, rewrite 66.5, explain 43.9, story 32.4;
+# about 4 tokens accepted per step on code. GPQA Diamond 75.8%, IFEval 86.7% (thinking off). Clean start ready in
+# 6.7 min, 55 GiB stay free.
+type: server
+image: lmsysorg/sglang@sha256:efac853b46811ccb760545b7b29e7119bdf907537ccf6e863fac3011fe8b98de
+model: thinkingmachines/Inkling-2-Mini
+revision: 6e7c8248f75265bdd4fbab5273304243b5d8c2cb
+memory: 80g
+env: MAX_JOBS=4 SGLANG_OPT_INKLING2_VERIFY_REL_BIAS_KERNEL=1 SGLANG_OPT_DSV41_DSPARK_MID_FOLD=1 SGLANG_OPT_DSV41_DSPARK_PREPARE_INPUTS_ONCE=1 SGLANG_OPT_DSV41_DSPARK_SKIP_PREFILLED_INPUTS=1
+args: sglang serve --model-path {model} --served-model-name inkling-2-mini --tp 1 --ep 1 --attention-backend fa4 --dtype bfloat16 --page-size 128 --speculative-algorithm DSPARK --speculative-num-draft-tokens 8 --mem-fraction-static 0.45 --grammar-backend xgrammar --reasoning-parser inkling --tool-call-parser inkling2 --enable-metrics
