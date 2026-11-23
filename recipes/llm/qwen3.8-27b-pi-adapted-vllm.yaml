@@ -1,0 +1,16 @@
+# Qwen3.8-27B BF16 with harness-hub's pi adapter (a LoRA trained for the pi coding agent) on vLLM 0.30.0. One DGX Spark.
+# This is the "Use with pi" command of the adapter's model card with a served name and --gpu-memory-utilization 0.60
+# (vLLM's default 0.9 would take 109 GiB of the Spark's unified memory). One server gives two models:
+# qwen3.8-27b is the base model and qwen3.8-pi is the base model with the adapter, so the two compare on equal terms.
+# Measured 2026-11-23, thinking off, temperature 0.8: 4.2 to 4.5 tok/s for one user, about 30 tok/s in total for 8 requests
+# at once (no draft model). Tool calls work on both models. Ready 8 min after the command, 43 GiB stayed free.
+# pi: the card's models.json with "api": "openai-completions" and the model id qwen3.8-pi.
+type: server
+image: vllm/vllm-openai:v0.30.0
+model: Qwen/Qwen3.8-27B
+revision: 37561816e66b5b9153b1b64c10968c18c1e6f4a0
+extra: harness-hub/Qwen3.8-27B-pi-adapted
+extra_revision: 7d42b119e2d4d475fa11270634b1ef98d1cd5aee
+extra_include: adapter_config.json adapter_model.safetensors
+memory: 100g
+args: {model} --served-model-name qwen3.8-27b --enable-lora --max-lora-rank 32 --lora-modules qwen3.8-pi={extra} --language-model-only --enable-prefix-caching --mamba-cache-mode align --enable-auto-tool-choice --tool-call-parser qwen3_xml --reasoning-parser qwen3 --default-chat-template-kwargs {"enable_thinking":false} --max-model-len 131072 --gpu-memory-utilization 0.60 --max-num-seqs 8
