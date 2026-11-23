@@ -5,12 +5,16 @@
 # code 30.6, rewrite 29.0, explain 16.3, story 8.0 tok/s (lab: z-lab's DFlash2 23.4, 23.6, 19.2, 18.6, 10.3; no draft 4.5).
 # Ready 10.3 min after the command, lowest free memory 21.6 GiB. Greedy answers matched no draft on 4 of 6 prompts
 # (near-tie token choices on the other two); DFlash2 matched on 6 of 6. FlashInfer as the draft backend gave garbage.
+# 2026-11-24, image 0cc92d8-gb10-2: sampled requests sometimes gave "!!!!" at 3 tok/s (greedy requests were right).
+# Cause: flashinfer's softmax returned NaN rows in the sampled verify step on the GB10, so every draft was rejected.
+# gb10.patch now makes SGLang use its Triton softmax there. Measured again from a clean start at temperature 0.7:
+# JSON 29.6, code 26.7, rewrite 27.5, explain 15.5, story 7.5 tok/s; ready in 11 min, lowest free memory 21.1 GiB.
 type: server
-image: dgx-spark-recipes/dspine:0cc92d8-gb10
+image: dgx-spark-recipes/dspine:0cc92d8-gb10-2
 build: images/dspine
 model: Qwen/Qwen3.8-27B
 revision: 37561816e66b5b9153b1b64c10968c18c1e6f4a0
 draft: tencent/Qwen3.8-27B-DSpine-b16
 draft_revision: 5f54174d301dbca65d9aa4448dc47e56732d9a12
 memory: 112g
-args: --model-path {model} --served-model-name qwen3.8-27b --tp-size 1 --dtype bfloat16 --attention-backend triton --linear-attn-backend triton --mamba-ssm-dtype float32 --mamba-radix-cache-strategy extra_buffer --max-mamba-cache-size 64 --mem-fraction-static 0.70 --context-length 131072 --max-running-requests 8 --cuda-graph-max-bs-decode 8 --sampling-backend flashinfer --reasoning-parser qwen3 --tool-call-parser qwen3_coder --enable-metrics --speculative-algorithm DSPINE --speculative-num-draft-tokens 16 --speculative-draft-attention-backend triton --speculative-draft-model-path {draft} --enable-linear-replayssm-spec --min-free-slots-delay 1
+args: --model-path {model} --served-model-name qwen3.8-27b --tp-size 1 --dtype bfloat16 --attention-backend triton --linear-attn-backend triton --mamba-ssm-dtype float32 --mamba-radix-cache-strategy extra_buffer --max-mamba-cache-size 64 --mem-fraction-static 0.70 --context-length 131072 --max-running-requests 8 --cuda-graph-max-bs-decode 8 --sampling-backend pytorch --reasoning-parser qwen3 --tool-call-parser qwen3_coder --enable-metrics --speculative-algorithm DSPINE --speculative-num-draft-tokens 16 --speculative-draft-attention-backend triton --speculative-draft-model-path {draft} --enable-linear-replayssm-spec --min-free-slots-delay 1

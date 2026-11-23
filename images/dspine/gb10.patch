@@ -1,22 +1,36 @@
 diff --git a/sglang_dspine/layers/attention.py b/sglang_dspine/layers/attention.py
-index b8479b5..5673197 100644
+index b8479b5..5aad270 100644
 --- a/sglang_dspine/layers/attention.py
 +++ b/sglang_dspine/layers/attention.py
-@@ -3,7 +3,8 @@
+@@ -3,7 +3,7 @@
  WINDOW = 8192
  BLOCK_SIZE = 16
  NUM_LAYERS = 5
 -BACKENDS = frozenset(("fa3",))
-+# No FA3 on sm_12x (GB10): Triton works there; FlashInfer gave garbage output.
-+BACKENDS = frozenset(("fa3", "fa4", "triton"))
++BACKENDS = frozenset(("fa3", "fa4", "triton"))  # no FA3 on sm_12x; flashinfer gave garbage on GB10
  
  
  def _get(config, name, default=None):
 diff --git a/sglang_dspine/runtime/worker.py b/sglang_dspine/runtime/worker.py
-index c8e3a0a..3c4c377 100644
+index c8e3a0a..18c4398 100644
 --- a/sglang_dspine/runtime/worker.py
 +++ b/sglang_dspine/runtime/worker.py
-@@ -695,8 +695,9 @@ class DSpineWorkerV2(DFlashWorkerV2):
+@@ -489,6 +489,14 @@ def dspine_accept_sampling(
+     return (accept_len.to(torch.int32), bonus)
+ 
+ 
++# GB10: flashinfer.sampling.softmax gave NaN rows in the sampled verify step (every draft was then rejected
++# and the bonus token was the last vocabulary id). None makes SGLang SoftmaxTemp use its Triton kernel.
++if torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] == 12:
++    import sglang.kernels.ops.speculative.dspark.dspark_accept as _dspark_accept
++
++    _dspark_accept._flashinfer_softmax = None
++
++
+ class DSpineWorkerV2(DFlashWorkerV2):
+     """DFlashWorkerV2 with DSpine's sampler on SGLang 0.5.22's seams A-C (module docstring)."""
+ 
+@@ -695,8 +703,9 @@ class DSpineWorkerV2(DFlashWorkerV2):
  
              runner = self.draft_model_runner
              backend = runner.attn_backend
