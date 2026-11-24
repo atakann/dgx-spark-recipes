@@ -51,6 +51,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `ornith-1.5-122b-q4km-llamacpp` | Ornith-1.5-122B, Q4_K_M GGUF | llama.cpp v0.7.0, built for sm_121 | 1 | 28.2 tok/s |
 | `ornith-1.5-122b-nvfp4-vllm` | Ornith-1.5-122B, NVFP4 | vLLM nightly 77154ca | 1 | 26.5 tok/s, prefill 2,447 tok/s |
 | `kolibri-1.1-q8-llamacpp` | Kolibri 1.1 (Aleph Alpha), Q8_0 GGUF | llama.cpp PR #32891, built for sm_121 | 1 | 50 tok/s, 36 tok/s at 120K |
+| `diffusiongemma-26b-a4b-nvfp4-vllm` | DiffusionGemma 26B-A4B (block diffusion), NVFP4 | vLLM 0.30.0 | 1 | 112-139 tok/s end to end |
 | `nemotron-3.5-bolt-vllm` | Nemotron 3.5 Bolt 74B, 2-bit QAD | vLLM nightly 77154ca + b12x | 1 | 29 tok/s |
 | `nemotron-3.5-bolt-lilicorr-vllm` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 1 | 93-104 tok/s on code, JSON, rewrites |
 | `qwen3.8-flash-next-fp4-vllm` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 1 | 49-64 tok/s on JSON, code, rewrites, explanations |
@@ -108,6 +109,22 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 ## CHANGELOG
 
 ### 2026-11-24
+
+#### DiffusionGemma on one Spark, on vLLM
+
+`llm/diffusiongemma-26b-a4b-nvfp4-vllm` runs NVIDIA's NVFP4 of [DiffusionGemma 26B-A4B](https://huggingface.co/nvidia/diffusiongemma-26B-A4B-it-NVFP4),
+Gemma 4 26B-A4B made a block-diffusion model: it fills 256-token blocks in parallel instead of writing one token at a
+time. The card's command on vLLM 0.30.0 (V2 model runner, Triton attention) with 0.60 of the memory and 64K context.
+The server refuses `temperature`, `seed` and similar fields for diffusion models, and blocks stream whole, so the
+honest speed is tokens over the time of the whole request.
+
+About 40 GiB free while serving. One user, thinking off, 300 tokens: 112 to 139 tok/s end to end on code, JSON and
+rewrite, 86 to 95 on explain, 63 to 65 on story (the same base model in BF16 decodes 24.5 tok/s on one Spark). Prefill
+1,433 tok/s at 32K. GPQA Diamond 62.6%, IFEval 82.6% (thinking off, 16K cap, no answer cut).
+
+```bash
+./run-recipe.sh llm/diffusiongemma-26b-a4b-nvfp4-vllm --setup
+```
 
 #### Kolibri 1.1 on one Spark, on llama.cpp
 

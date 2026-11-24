@@ -1,0 +1,16 @@
+# DiffusionGemma 26B-A4B (Gemma 4 26B-A4B made a block-diffusion model) in NVIDIA's NVFP4, on vLLM 0.30.0. One DGX Spark.
+# It writes 256-token blocks in parallel by diffusion instead of one token at a time. The card's command with
+# VLLM_USE_V2_MODEL_RUNNER=1, Triton attention, 0.60 of the memory and 64K context. The repo has no .py files,
+# so --trust-remote-code runs no outside code. The server refuses temperature, seed, min_p and similar fields for
+# diffusion models: send none. Blocks stream whole, so time per request is the honest speed.
+# Measured 2026-11-24, one user, thinking off, 300 tokens: end to end 137 (code), 139 (JSON), 127 (rewrite),
+# 86 (explain), 65 (story) tok/s; inside a block up to 295 tok/s. Prefill 1,433 tok/s at 32K, 1,145 at 60K.
+# GPQA Diamond 62.6%, IFEval 82.6% (thinking off, 16K cap, no answer cut). About 40 GiB free while serving.
+# Run again from this recipe: end to end 112 to 131 tok/s on code, JSON and rewrite, 63 on story.
+type: server
+image: vllm/vllm-openai:v0.30.0
+model: nvidia/diffusiongemma-26B-A4B-it-NVFP4
+revision: ec4ff3df205028f4e81c954c2227f9312b3ec2ea
+memory: 100g
+env: VLLM_USE_V2_MODEL_RUNNER=1
+args: {model} --served-model-name diffusiongemma --trust-remote-code --max-num-seqs 4 --attention-backend TRITON_ATTN --enable-auto-tool-choice --tool-call-parser gemma4 --reasoning-parser gemma4 --override-generation-config {"max_new_tokens":null} --gpu-memory-utilization 0.60 --max-model-len 65536
