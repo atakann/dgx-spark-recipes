@@ -107,6 +107,42 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 
 ## CHANGELOG
 
+### 2026-11-24
+
+#### Kolibri 1.1 on one Spark, on llama.cpp
+
+`llm/kolibri-1.1-q8-llamacpp` runs Aleph Alpha's [Kolibri 1.1](https://huggingface.co/Aleph-Alpha/Kolibri-1.1)
+(75B total, 3.4B active, sparse attention, German and English, Apache 2.0) from Aleph Alpha's own Q8_0 GGUF (80 GB).
+Kolibri's vLLM plugin accepts only H100 and B200 GPUs, so `images/llama-kolibri` builds llama.cpp for sm_121 from pull
+request #32891, which adds the model, at its pinned head. The flags are plain `llama-server` ones with the card's
+sampling; several slots (`-np`) need `--kv-unified` with this model.
+
+About 37 GiB free while serving. One user, thinking off: about 50 tok/s on every prompt; 43.7, 39.8 and 36.1 tok/s at
+32K, 64K and 120K context, prefill 1,533, 1,356 and 1,117 tok/s, a second turn at 120K in 0.45 s. GPQA Diamond 65.7%,
+IFEval 79.5% (thinking off, 16K cap). Two coding harnesses (Pi, opencode) built a 26-test shared-expense app with it at
+reasoning effort low: 6 of 6 takes passed, 5 to 8 minutes each.
+
+```bash
+./run-recipe.sh llm/kolibri-1.1-q8-llamacpp --setup
+```
+
+#### Qwen3.8-27B with harness-hub's Pi adapter, on vLLM
+
+`llm/qwen3.8-27b-pi-adapted-vllm` serves [harness-hub/Qwen3.8-27B-pi-adapted](https://huggingface.co/harness-hub/Qwen3.8-27B-pi-adapted),
+a LoRA for the Pi coding agent, with the adapter card's command on vLLM 0.30.0: one server answers both the base model
+and the adapted one. 4.2 to 4.5 tok/s for one user, about 30 tok/s in total for 8 requests, ready in 8 min, 43.6 GiB free.
+
+```bash
+./run-recipe.sh llm/qwen3.8-27b-pi-adapted-vllm --setup
+```
+
+#### DSpine: sampled requests fixed on the GB10
+
+On `llm/qwen3.8-27b-bf16-dspine-sglang`, requests with a temperature above 0 sometimes gave "!!!!" at about 3 tok/s:
+flashinfer's softmax returned NaN rows in the sampled verify step on the GB10, so every draft was rejected.
+`images/dspine/gb10.patch` now makes SGLang use its Triton softmax there (image `0cc92d8-gb10-2`). Measured again at
+temperature 0.7: JSON 29.6, code 26.7, rewrite 27.5, explain 15.5, story 7.5 tok/s.
+
 ### 2026-11-21
 
 #### Inkling 2 Mini on one Spark, on SGLang and on vLLM
