@@ -1,0 +1,16 @@
+# Kolibri 1.1 (Aleph Alpha, 75B MoE with 3.4B active, sparse attention, German and English), Aleph Alpha's own Q8_0 GGUF,
+# on llama.cpp built from pull request #32891 (images/llama-kolibri). One DGX Spark.
+# Measured 2026-11-24, one user, thinking off: decode about 50 tok/s on every prompt (49 to 50 again from this recipe's clean build); at 32K, 64K and 120K context
+# 43.7, 39.8 and 36.1 tok/s, prefill 1,533, 1,356 and 1,117 tok/s, a second turn's first token in 0.26 to 0.45 s
+# (prompt cache). GPQA Diamond 65.7% and IFEval 79.5% (thinking off, 16K cap). About 37 GiB free while serving.
+# The card's sampling: temperature 1.0, top_p 0.99, top_k 128. Thinking levels come from reasoning_effort
+# (none, minimal, low, medium, high; high by default) or enable_thinking in chat_template_kwargs.
+# Several parallel slots (-np) need --kv-unified with this model.
+type: server
+image: dgx-spark-recipes/llama-kolibri:5f4d222
+build: images/llama-kolibri
+model: Aleph-Alpha/Kolibri-1.1-GGUF
+revision: 90116812a1669494a894b729e677ed75d6068320
+file: Kolibri-1.1-Q8_0.gguf
+memory: 110g
+args: -m {model} --alias kolibri -ngl 999 -c 131072 -np 1 -fa on --jinja --metrics --temp 1.0 --top-p 0.99 --top-k 128
