@@ -52,6 +52,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `ornith-1.5-122b-nvfp4-vllm` | Ornith-1.5-122B, NVFP4 | vLLM nightly 77154ca | 1 | 26.5 tok/s, prefill 2,447 tok/s |
 | `kolibri-1.1-q8-llamacpp` | Kolibri 1.1 (Aleph Alpha), Q8_0 GGUF | llama.cpp PR #32891, built for sm_121 | 1 | 50 tok/s, 36 tok/s at 120K |
 | `diffusiongemma-26b-a4b-nvfp4-vllm` | DiffusionGemma 26B-A4B (block diffusion), NVFP4 | vLLM 0.30.0 | 1 | 112-139 tok/s end to end |
+| `minicpm-v-4.7-35b-a3b-fp8-dspark-vllm` | MiniCPM-V 4.7 35B-A3B, FP8 + DSpark | vLLM nightly f2f9edcac | 1 | 87-92 tok/s on code and JSON |
 | `nemotron-3.5-bolt-vllm` | Nemotron 3.5 Bolt 74B, 2-bit QAD | vLLM nightly 77154ca + b12x | 1 | 29 tok/s |
 | `nemotron-3.5-bolt-lilicorr-vllm` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 1 | 93-104 tok/s on code, JSON, rewrites |
 | `qwen3.8-flash-next-fp4-vllm` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 1 | 49-64 tok/s on JSON, code, rewrites, explanations |
@@ -107,6 +108,25 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-25
+
+#### MiniCPM-V 4.7 on one Spark, with its DSpark draft
+
+`llm/minicpm-v-4.7-35b-a3b-fp8-dspark-vllm` runs OpenBMB's [MiniCPM-V 4.7 35B-A3B](https://huggingface.co/openbmb/MiniCPM-V-4.7-35B-A3B)
+(a vision MoE with 3B active) from OpenBMB's own FP8 build (38 GB) with its DSpark draft. vLLM 0.30.0 does not know
+the model yet, so the image is a vLLM nightly (0.34.0rc1, pinned by digest). The command is OpenBMB's DSpark command
+for one GPU, plus the reasoning and tool-call parsers its template needs, and 5 draft tokens instead of the card's 15:
+on a Spark, 5 was level on code and JSON and faster everywhere else.
+
+About 43 GiB free while serving. One user, thinking off: code 86.9 tok/s, JSON 92.1, rewrite 79.1, explain 75.5,
+story 44.1 (no draft: about 40 on every prompt). At long context the draft costs more than it gains (13.7 tok/s at
+60K against 32.8 with no draft), so drop `--speculative-config` for long documents. GPQA Diamond 79.3%, IFEval 88.7%
+(thinking off, 64K cap).
+
+```bash
+./run-recipe.sh llm/minicpm-v-4.7-35b-a3b-fp8-dspark-vllm --setup
+```
 
 ### 2026-11-24
 

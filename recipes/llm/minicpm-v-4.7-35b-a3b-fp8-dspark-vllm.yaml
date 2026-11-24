@@ -1,0 +1,20 @@
+# MiniCPM-V 4.7 35B-A3B (OpenBMB, vision MoE with 3B active, Qwen3.5-MoE text model) in OpenBMB's FP8 (38 GB) with
+# its DSpark draft (5 tokens), on a vLLM nightly (0.34.0rc1, f2f9edcac): v0.30.0 does not know the model yet.
+# OpenBMB's DSpark command for one Spark: the flags of its two-GPU setup (tensor parallel 2, no custom all-reduce,
+# no all-reduce fusion) dropped, 0.60 of the memory, 64K context, 4 sequences. Thinking is off by default as on the
+# card; turn it on with chat_template_kwargs {"enable_thinking": true}. Neither repo has .py files. Added: the
+# minicpmv reasoning parser and the qwen3_coder tool parser (its template's format), which the card's command lacks.
+# Measured 2026-11-25, one user, thinking off, 300 tokens (tok/s): 5 draft tokens: code 86.9, JSON 92.1, rewrite 79.1,
+# explain 75.5, story 44.1; the card's 15: 90.5, 89.1, 74.7, 63.2, 34.7; no draft: about 40 on every prompt.
+# At long context the draft costs more than it gains: decode 18.5 and 13.7 at 32K and 60K against 35.8 and 32.8 with
+# no draft (prefill about 5,200 and 4,800 tok/s either way), so drop --speculative-config for long documents.
+# GPQA Diamond 79.3%, IFEval 88.7% (thinking off, 64K cap, 0 and 1 answers cut). About 43 GiB free while serving,
+# steady through the quality run.
+type: server
+image: vllm/vllm-openai@sha256:eaa63fd6ee3aac77f3158e80ed79ec425db3a53f7cd666bf1954e96abfaf19a7
+model: openbmb/MiniCPM-V-4.7-35B-A3B-FP8
+revision: 4b7b0537539b0ba6216bc4c4d0247d65956d40e2
+draft: openbmb/MiniCPM-V-4.7-35B-A3B-DSpark
+draft_revision: 55249d3e69315892ca07bc956228b404f2526f9a
+memory: 100g
+args: {model} --served-model-name minicpm-v-4.7 --max-model-len 65536 --max-num-seqs 4 --gpu-memory-utilization 0.60 --enable-prefix-caching --mm-processor-kwargs {"downsample_mode":"4x"} --trust-request-mm-kwargs --reasoning-parser minicpmv --enable-auto-tool-choice --tool-call-parser qwen3_coder --speculative-config {"method":"dspark","model":"{draft}","num_speculative_tokens":5,"enable_adaptive_verification":false} --default-chat-template-kwargs {"enable_thinking":false}
