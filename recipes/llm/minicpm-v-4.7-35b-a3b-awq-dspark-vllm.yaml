@@ -1,0 +1,14 @@
+# MiniCPM-V 4.7 35B-A3B (OpenBMB, vision MoE with 3B active) in OpenBMB's own 4-bit AWQ build (W4A16, group 128,
+# compressed-tensors, 22.7 GB; the vision tower is not quantized) with its DSpark draft, on the same vLLM nightly as
+# the FP8 recipe. Same command as llm/minicpm-v-4.7-35b-a3b-fp8-dspark-vllm with the AWQ weights; neither repo has .py files.
+# Measured 2026-11-25, one user, thinking off, 300 tokens (tok/s), 5 draft tokens: code 119.5, JSON 110.9, rewrite 111.0,
+# explain 101.0, story 53.9 (FP8 with the same draft: 86.9, 92.1, 79.1, 75.5, 44.1). GPQA Diamond 81.3%, IFEval 87.4%
+# (thinking off, 64K cap, 0 and 4 answers cut; FP8 79.3% and 88.7%). About 43 GiB free while serving.
+type: server
+image: vllm/vllm-openai@sha256:eaa63fd6ee3aac77f3158e80ed79ec425db3a53f7cd666bf1954e96abfaf19a7
+model: openbmb/MiniCPM-V-4.7-35B-A3B-AWQ
+revision: e83f81c27e20d01d79cebd37f7c1b38afa86aad3
+draft: openbmb/MiniCPM-V-4.7-35B-A3B-DSpark
+draft_revision: 55249d3e69315892ca07bc956228b404f2526f9a
+memory: 100g
+args: {model} --served-model-name minicpm-v-4.7 --max-model-len 65536 --max-num-seqs 4 --gpu-memory-utilization 0.60 --enable-prefix-caching --mm-processor-kwargs {"downsample_mode":"4x"} --trust-request-mm-kwargs --reasoning-parser minicpmv --enable-auto-tool-choice --tool-call-parser qwen3_coder --speculative-config {"method":"dspark","model":"{draft}","num_speculative_tokens":5,"enable_adaptive_verification":false} --default-chat-template-kwargs {"enable_thinking":false}

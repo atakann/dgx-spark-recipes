@@ -53,6 +53,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `kolibri-1.1-q8-llamacpp` | Kolibri 1.1 (Aleph Alpha), Q8_0 GGUF | llama.cpp PR #32891, built for sm_121 | 1 | 50 tok/s, 36 tok/s at 120K |
 | `diffusiongemma-26b-a4b-nvfp4-vllm` | DiffusionGemma 26B-A4B (block diffusion), NVFP4 | vLLM 0.30.0 | 1 | 112-139 tok/s end to end |
 | `minicpm-v-4.7-35b-a3b-fp8-dspark-vllm` | MiniCPM-V 4.7 35B-A3B, FP8 + DSpark | vLLM nightly f2f9edcac | 1 | 87-92 tok/s on code and JSON |
+| `minicpm-v-4.7-35b-a3b-awq-dspark-vllm` | same, OpenBMB's 4-bit AWQ + DSpark | vLLM nightly f2f9edcac | 1 | 111-120 tok/s on code, JSON, rewrites |
 | `nemotron-3.5-lightning-nvfp4-dspark-vllm` | Nemotron 3.5 Lightning 30B-A3B, NVFP4 + DSpark | vLLM 0.30.0 | 1 | 102-152 tok/s on code, JSON, rewrites, explanations |
 | `nemotron-3.5-bolt-vllm` | Nemotron 3.5 Bolt 74B, 2-bit QAD | vLLM nightly 77154ca + b12x | 1 | 29 tok/s |
 | `nemotron-3.5-bolt-lilicorr-vllm` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 1 | 93-104 tok/s on code, JSON, rewrites |
@@ -127,6 +128,18 @@ story 44.1 (no draft: about 40 on every prompt). At long context the draft costs
 
 ```bash
 ./run-recipe.sh llm/minicpm-v-4.7-35b-a3b-fp8-dspark-vllm --setup
+```
+
+#### MiniCPM-V 4.7 in OpenBMB's 4-bit AWQ
+
+`llm/minicpm-v-4.7-35b-a3b-awq-dspark-vllm` is the FP8 recipe's command with OpenBMB's own [AWQ build](https://huggingface.co/openbmb/MiniCPM-V-4.7-35B-A3B-AWQ)
+(4-bit weights, group 128, 22.7 GB instead of 38 GB; the vision tower stays unquantized). On the same Spark and the
+same draft it is faster on every prompt: code 119.5 tok/s against 86.9, JSON 110.9 against 92.1, rewrite 111.0 against
+79.1, explain 101.0 against 75.5. Quality is level within the 95% intervals: GPQA Diamond 81.3% against 79.3%, IFEval
+87.4% against 88.7% (thinking off, 64K cap).
+
+```bash
+./run-recipe.sh llm/minicpm-v-4.7-35b-a3b-awq-dspark-vllm --setup
 ```
 
 #### Nemotron 3.5 Lightning on one Spark, with its DSpark draft
