@@ -1,0 +1,12 @@
+# Nemotron 3.5 Lightning (NVIDIA, 30B hybrid Mamba and attention MoE, 3B active) in NVIDIA's NVFP4 with its DSpark
+# draft, on vLLM 0.30.0. One DGX Spark. The card's DGX Spark command (Marlin MoE backend, FP8 KV cache, FlashInfer
+# Mamba, 3 speculative tokens) with 0.60 of the memory and 256K context. NVIDIA publishes only BF16 and NVFP4; the
+# card scores them level (GPQA Diamond 75.44% and 75.57% with reasoning).
+type: server
+image: vllm/vllm-openai:v0.30.0
+model: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4
+revision: bee7596271d1495f6992ae224aefde4410e816b8
+draft: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4-DSpark
+draft_revision: 6d127b50ecd98562cea85d0087680b7d86091fb0
+memory: 100g
+args: {model} --served-model-name nemotron-3.5-lightning --moe-backend marlin --kv-cache-dtype fp8 --enable-prefix-caching --gpu-memory-utilization 0.60 --max-model-len 262144 --mamba-backend flashinfer --mamba-cache-mode align --reasoning-parser nemotron_v3 --tool-call-parser qwen3_coder --enable-auto-tool-choice --speculative-config {"model":"{draft}","num_speculative_tokens":3}

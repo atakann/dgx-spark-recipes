@@ -53,6 +53,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `kolibri-1.1-q8-llamacpp` | Kolibri 1.1 (Aleph Alpha), Q8_0 GGUF | llama.cpp PR #32891, built for sm_121 | 1 | 50 tok/s, 36 tok/s at 120K |
 | `diffusiongemma-26b-a4b-nvfp4-vllm` | DiffusionGemma 26B-A4B (block diffusion), NVFP4 | vLLM 0.30.0 | 1 | 112-139 tok/s end to end |
 | `minicpm-v-4.7-35b-a3b-fp8-dspark-vllm` | MiniCPM-V 4.7 35B-A3B, FP8 + DSpark | vLLM nightly f2f9edcac | 1 | 87-92 tok/s on code and JSON |
+| `nemotron-3.5-lightning-nvfp4-dspark-vllm` | Nemotron 3.5 Lightning 30B-A3B, NVFP4 + DSpark | vLLM 0.30.0 | 1 | 102-152 tok/s on code, JSON, rewrites, explanations |
 | `nemotron-3.5-bolt-vllm` | Nemotron 3.5 Bolt 74B, 2-bit QAD | vLLM nightly 77154ca + b12x | 1 | 29 tok/s |
 | `nemotron-3.5-bolt-lilicorr-vllm` | same, with NVIDIA's LiLiCorr draft | vLLM nightly 77154ca + b12x | 1 | 93-104 tok/s on code, JSON, rewrites |
 | `qwen3.8-flash-next-fp4-vllm` | Qwen3.8-Flash-Next FP4-Local (NVIDIA's QAD NVFP4), MTP 4 | vLLM 8244d1c (eugr/spark-vllm-b12x) | 1 | 49-64 tok/s on JSON, code, rewrites, explanations |
@@ -126,6 +127,21 @@ story 44.1 (no draft: about 40 on every prompt). At long context the draft costs
 
 ```bash
 ./run-recipe.sh llm/minicpm-v-4.7-35b-a3b-fp8-dspark-vllm --setup
+```
+
+#### Nemotron 3.5 Lightning on one Spark, with its DSpark draft
+
+`llm/nemotron-3.5-lightning-nvfp4-dspark-vllm` runs NVIDIA's NVFP4 of [Nemotron 3.5 Lightning 30B-A3B](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4)
+(a hybrid Mamba and attention MoE, 3B active) with NVIDIA's DSpark draft. The card's DGX Spark command on vLLM 0.30.0
+(Marlin MoE backend, FP8 KV cache, FlashInfer Mamba, 3 draft tokens) with 0.60 of the memory and 256K context.
+
+One user, thinking off: code 118.2 tok/s, JSON 122.8, rewrite 151.7, explain 102.7, translate 101.9, story 73.3
+(no draft: about 68). Unlike MiniCPM, the draft keeps paying at long context: 90.5 tok/s at 32K, 79.2 at 64K and
+77.3 at 128K (no draft: 61 at 128K). A second turn on the same 128K prompt starts in 8.8 s. GPQA Diamond 60.6%,
+IFEval 75.0% (thinking off, 64K cap, 3 and 8 runaway answers cut).
+
+```bash
+./run-recipe.sh llm/nemotron-3.5-lightning-nvfp4-dspark-vllm --setup
 ```
 
 ### 2026-11-24
