@@ -1,0 +1,19 @@
+# MiMo-V2.6-Flash-RL (Xiaomi, 309B MoE with 15B active) in NVIDIA's NVFP4 build (174 GB) on two DGX Sparks, TP=2 over
+# the QSFP link, with the model's MTP draft (3 tokens). Run it on the first Spark with WORKER=<ssh host of the second
+# Spark>; --setup builds the image, copies it and downloads the model on both.
+# The image is a vLLM nightly plus the two model files of vllm-project/vllm#70196 (images/vllm-mimo-nvfp4): without
+# them the checkpoint stops at load or answers NaN. Text only: the image and video encoders' profile at 128K takes
+# the free memory under 12 GiB. BF16 KV cache: FP8 KV crashes the Triton DiffKV kernel on this GPU (vllm#61927).
+# Measured 2026-11-26, one user, thinking off: JSON 44.0, code 37.6, rewrite 41.8, explain 37.6, story 30.5 tok/s
+# (31.5 without MTP); 32.5 / 30.4 / 28.1 tok/s decode at 32K / 64K / 128K; GPQA Diamond 68.7%, IFEval 83.2%.
+# Lowest free memory 19 GiB. The repo's .py files were read: no network, exec or pickle calls.
+# Thinking is on by default; turn it off with chat_template_kwargs {"enable_thinking": false}.
+type: server
+sparks: 2
+image: dgx-spark-recipes/vllm-mimo-nvfp4:f2f9edc-9728c5e
+build: images/vllm-mimo-nvfp4
+model: nvidia/MiMo-V2.6-Flash-RL-NVFP4
+revision: a8e51405a16b441ff0a08ef272ec6256d6ac822a
+memory: 112g
+cache: true
+args: {model} --served-model-name mimo-v2.6-flash --tensor-parallel-size 2 --quantization modelopt --max-model-len 131072 --max-num-seqs 4 --gpu-memory-utilization 0.75 --enable-prefix-caching --speculative-config {"method":"mtp","num_speculative_tokens":3} --limit-mm-per-prompt {"image":0,"video":0,"audio":0} --reasoning-parser mimo --tool-call-parser mimo --enable-auto-tool-choice --trust-remote-code

@@ -76,6 +76,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `minimax-h3-image-pe-sglang` | MiniMax-H3-Image-PE (prompt expansion for MiniMax-H3-Image, a Qwen3.8-27B fine-tune), MiniMax's FP4 | SGLang nightly 7e31007a | 1 | a 200-300 word prompt in 44-47 s |
 | `edge0-145b-nvfp4-strata` | Edge0-145B, NVFP4 (Edge0), a latent sparse MoE rebuilt from Qwen3.8-Flash-Next, MTP 4 | Edge0 257ff84 (edge0-strata), built for sm_121 | 1 | 36-39 tok/s on JSON, code, rewrites; 24 on stories |
 | `hy4-flash-nvfp4-vllm-tp2` | Hy4-flash 220B-A12B (Tencent), NVFP4 experts and FP8 Engram tables ([atakans](https://huggingface.co/atakans/Hy4-flash-NVFP4)), DFly 5, TP=2 with expert parallel | vLLM 77766db (hy4-flash image) + six files | 2 | 36-38 tok/s on JSON, code, rewrites; 17 on stories |
+| `mimo-v2.6-flash-nvfp4-vllm-tp2` | MiMo-V2.6-Flash-RL 309B-A15B (Xiaomi), NVIDIA's NVFP4 build, MTP 3, TP=2 | vLLM nightly f2f9edcac + two files (vllm#70196) | 2 | 38-44 tok/s on JSON, code, rewrites; 28 at 128K |
 
 ### Image (`image/`)
 
@@ -110,6 +111,23 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-27
+
+#### MiMo-V2.6-Flash on two Sparks, with a vLLM fix
+
+`llm/mimo-v2.6-flash-nvfp4-vllm-tp2` runs Xiaomi's [MiMo-V2.6-Flash-RL](https://huggingface.co/nvidia/MiMo-V2.6-Flash-RL-NVFP4)
+(309B MoE, 15B active) from NVIDIA's NVFP4 build (174 GB), TP=2 over the QSFP link, with the model's MTP draft. vLLM's
+MiMo loader cannot read this build yet: the NVFP4 fused QKV stops the load, the dense MLP's FP8 scale is skipped
+(every answer is NaN), and the MTP draft runs unscaled. The image `images/vllm-mimo-nvfp4` is a vLLM nightly plus the
+two model files of [vllm-project/vllm#70196](https://github.com/vllm-project/vllm/pull/70196), which fixes all three;
+once it merges, the plain nightly will do. One user, thinking off: JSON 44.0, code 37.6, rewrite 41.8, story 30.5 tok/s
+(31.5 without MTP); decode 32.5 / 30.4 / 28.1 tok/s at 32K / 64K / 128K; GPQA Diamond 68.7%, IFEval 83.2%. Text only
+and BF16 KV cache, both to keep 12 GiB free and because FP8 KV crashes on this GPU (vllm#61927).
+
+```bash
+WORKER=<second Spark> ./run-recipe.sh llm/mimo-v2.6-flash-nvfp4-vllm-tp2 --setup
+```
 
 ### 2026-11-25
 
