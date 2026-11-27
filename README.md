@@ -83,6 +83,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | recipe | model | engine | Sparks | time |
 |---|---|---|---|---|
 | `qwen-image-2.1-turbo` | Qwen-Image 2.1 Turbo, BF16, 8 steps | diffusers 0.41.0 | 1 | 55.5 s per 2048² image |
+| `image/ming-image-0.2-design` | Ming-Image-0.2-Design (inclusionAI), design images with exact text, BF16, 12 steps | Ming-Image d561511 on vLLM 0.32.0's torch | 1 | 101-128 s per 3-4 MP image, load 360 s once |
 | `qwen-image-2.1-base` | Qwen-Image 2.1, BF16, 40 steps | diffusers 0.41.0 | 1 | 257 s per 2048² image |
 | `flux-3-klein` | FLUX 3 Klein, BF16 and NVFP4 | ComfyUI v0.41.0 | 1 | 7.2 s per 1 MP image (NVFP4) |
 | `minimax-h3-image-sglang` | MiniMax-H3-Image, BF16, 6 steps (server) | SGLang nightly 7e31007a | 1 | 81 s per 4096² image, 16 s per 2048² |
@@ -113,6 +114,21 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 ## CHANGELOG
 
 ### 2026-11-27
+
+#### Ming-Image-0.2-Design on one Spark
+
+`image/ming-image-0.2-design` runs inclusionAI's [Ming-Image-0.2-Design](https://huggingface.co/inclusionAI/Ming-Image-0.2-Design)
+(MIT): a 6B DiT driven by a BailingMM2 language model, made for design images whose text must be exact, such as
+posters, covers, menus and app screens. BF16 and the model's default 12 steps. The image is Ming-Image's own code
+(d561511) with the packages it pins, on vLLM 0.32.0's arm64 image for a torch with GB10 kernels. The script loads the
+model once and renders a list of prompts: load 360 s, then 101 to 128 s for each of six images at 3.1 to 4.2 MP.
+Write every visible word into the prompt; text the prompt does not spell out comes out garbled. Short titles and
+menu-style lists came out right; it miscounted chart bars and broke a date in a thin decorative typeface.
+
+```bash
+./run-recipe.sh image/ming-image-0.2-design --setup -- --prompt "Square album cover ... Band name at the top: THE PALE ECHOES." --width 2048 --height 2048
+./run-recipe.sh image/ming-image-0.2-design -- --jobs /out/jobs.json   # a list of {name, prompt, width, height}
+```
 
 #### MiMo-V2.6-Flash on two Sparks, with a vLLM fix
 

@@ -1,0 +1,10 @@
+# Ming-Image-0.2-Design (inclusionAI): a 6B DiT driven by a BailingMM2 language model, for design images with
+# exact text (posters, covers, menus, app screens). BF16, 12 steps (the model's default), one DGX Spark.
+# Measured 2026-11-27, six images at 3.1-4.2 MP in one run: load 360 s once, then 101-128 s per image.
+# Short titles and menu-style lists come out right; counts (bars, dots) and thin decorative type can go wrong.
+image: dgx-spark-recipes/ming-image:d561511
+build: images/ming-image
+model: inclusionAI/Ming-Image-0.2-Design
+revision: 3538f4c311cf8f5256d631ddb7f47793f741aa2e
+memory: 100g
+script: scripts/ming-image.py
