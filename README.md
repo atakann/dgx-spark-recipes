@@ -77,6 +77,7 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `edge0-145b-nvfp4-strata` | Edge0-145B, NVFP4 (Edge0), a latent sparse MoE rebuilt from Qwen3.8-Flash-Next, MTP 4 | Edge0 257ff84 (edge0-strata), built for sm_121 | 1 | 36-39 tok/s on JSON, code, rewrites; 24 on stories |
 | `hy4-flash-nvfp4-vllm-tp2` | Hy4-flash 220B-A12B (Tencent), NVFP4 experts and FP8 Engram tables ([atakans](https://huggingface.co/atakans/Hy4-flash-NVFP4)), DFly 5, TP=2 with expert parallel | vLLM 77766db (hy4-flash image) + six files | 2 | 36-38 tok/s on JSON, code, rewrites; 17 on stories |
 | `mimo-v2.6-flash-nvfp4-vllm-tp2` | MiMo-V2.6-Flash-RL 309B-A15B (Xiaomi), NVIDIA's NVFP4 build, MTP 3, TP=2 | vLLM nightly f2f9edcac + two files (vllm#70196) | 2 | 38-44 tok/s on JSON, code, rewrites; 28 at 128K |
+| `ling-3.2-air-nvfp4-vllm` | Ling-3.2-air 124B-A5.5B (inclusionAI), primitive-ai's NVFP4 build, MTP 3, KDA linear attention | vLLM nightly f2f9edcac (the MiMo image) | 1 | 44-50 tok/s on JSON, code, rewrites; 26 at 128K |
 
 ### Image (`image/`)
 
@@ -112,6 +113,24 @@ WORKER=spark2 ./run-recipe.sh llm/qwen3.8-flash-next-fp4-vllm-tp2 --stop
 | `yolo26-deepstream` | YOLO26s, TensorRT FP16, NvSORT, N videos in one pipeline | DeepStream 9.2, TensorRT 10.16.1 | 1 | 16 videos at 33.4 FPS each |
 
 ## CHANGELOG
+
+### 2026-11-28
+
+#### Ling-3.2-air on one Spark
+
+`llm/ling-3.2-air-nvfp4-vllm` runs inclusionAI's [Ling-3.2-air](https://huggingface.co/inclusionAI/Ling-3.2-air)
+(124B MoE, 5.5B active; 35 KDA linear-attention layers and 7 MLA layers, image and video input) from
+[primitive-ai's NVFP4 build](https://huggingface.co/primitive-ai/Ling-3.2-air-NVFP4) (78 GB: routed experts in NVFP4,
+attention and shared experts in BF16) with the model's MTP draft. It reuses the MiMo image (a vLLM nightly that serves
+the model natively). One user, thinking off: JSON 50.5, code 49.5, rewrite 48.7, story 32.6 tok/s (22.3 without
+MTP); decode 33.7 / 31.3 / 26.0 tok/s at 32K / 64K / 128K, and the second 128K turn starts in 1.6 s from the prefix
+cache; GPQA Diamond 74.2%, IFEval 86.9%. BF16 KV cache, because with FP8 KV the MLA decode kernel needs more shared
+memory than GB10 has. A 128K prefill takes about 18 GiB beyond vLLM's pool, so the pool is 0.68: lowest free memory
+17 GiB. A clean start is ready in about 6 minutes.
+
+```bash
+./run-recipe.sh llm/ling-3.2-air-nvfp4-vllm --setup
+```
 
 ### 2026-11-27
 

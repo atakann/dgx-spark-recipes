@@ -1,0 +1,20 @@
+# Ling-3.2-air (inclusionAI, 124B MoE with 5.5B active, 35 KDA linear-attention + 7 MLA layers) in primitive-ai's NVFP4
+# build (78 GB: routed experts in NVFP4, attention and shared experts in BF16) on one DGX Spark, with the model's MTP
+# draft (3 tokens). The image is the vLLM nightly of images/vllm-mimo-nvfp4 (vLLM f2f9edc, which serves bailing_moe_v3
+# natively); its two MiMo files do not touch this model. --trust-remote-code loads only the image processor; the
+# repo's .py files are byte-identical to inclusionAI's and were read: no exec or pickle, network only for image URLs.
+# BF16 KV cache: with FP8 KV the Triton MLA decode kernel asks for 102,400 bytes of shared memory, GB10 has 101,376.
+# Memory: 0.68 leaves 36 GiB free at rest; a 128K prefill takes about 18 GiB more outside the pool (0.75 hit the
+# 12 GiB floor, 0.62 left no room for the KV cache). 2048-token prefill chunks.
+# Measured 2026-11-28, one user, temperature 0, thinking off: JSON 50.5, code 49.5, rewrite 48.7, explain 43.1,
+# story 32.6 tok/s (22.3 without MTP); 33.7 / 31.3 / 26.0 tok/s decode at 32K / 64K / 128K (31.2 on the second
+# 128K turn); GPQA Diamond 74.2% (11 of 198 cut at 16K), IFEval 86.9%. Lowest free memory 17 GiB.
+# Thinking is on by default; turn it off with chat_template_kwargs {"enable_thinking": false}.
+type: server
+image: dgx-spark-recipes/vllm-mimo-nvfp4:f2f9edc-9728c5e
+build: images/vllm-mimo-nvfp4
+model: primitive-ai/Ling-3.2-air-NVFP4
+revision: a01b9c21680a104ccefcbce5b9e6745c004fb89b
+memory: 112g
+cache: true
+args: {model} --served-model-name ling-3.2-air --trust-remote-code --max-model-len 131072 --max-num-seqs 4 --max-num-batched-tokens 2048 --gpu-memory-utilization 0.68 --enable-prefix-caching --speculative-config {"method":"mtp","num_speculative_tokens":3} --reasoning-parser ling3 --tool-call-parser ling3 --enable-auto-tool-choice
